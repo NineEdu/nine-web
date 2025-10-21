@@ -1,7 +1,7 @@
 import { Heading } from "@/components/Heading";
 import { Text } from "@/components/Text";
 import React from "react";
-import { TestimonialCard } from "./Quote";
+import Quote from "./Quote";
 
 export const testimonialsData = [
   {
@@ -49,7 +49,7 @@ const SuccessStories = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-16">
         {testimonialsData.map((testimonial, idx) => (
-          <TestimonialCard
+          <Quote
             key={idx}
             name={testimonial.name}
             title={testimonial.title}

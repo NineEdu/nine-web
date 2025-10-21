@@ -8,7 +8,7 @@ interface TestimonialCardProps {
   className?: string;
 }
 
-export const TestimonialCard: React.FC<TestimonialCardProps> = ({
+const Quote: React.FC<TestimonialCardProps> = ({
   name,
   title,
   avatarSrc,
@@ -53,3 +53,5 @@ export const TestimonialCard: React.FC<TestimonialCardProps> = ({
     </div>
   );
 };
+
+export default Quote;
