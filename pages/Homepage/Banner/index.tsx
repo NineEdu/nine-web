@@ -6,14 +6,14 @@ import React from "react";
 
 const Banner = () => {
   return (
-    <div className="min-h-screen bg-white flex py-20">
+    <div className="container bg-white flex pt-20 lg:flex-row flex-col ">
       {/* right section */}
       <div className="flex-1 px-10">
         {/* heading */}
         <Heading
           as="h2"
           size="xl"
-          className="tracking-[2px] !text-[48px]  uppercase leading-normal"
+          className="tracking-[2px] text-[30px] lg:!text-[48px]  uppercase leading-normal"
         >
           Your Gateway
           <br /> to Lifelong <br />
@@ -35,7 +35,7 @@ const Banner = () => {
       </div>
 
       {/* left section */}
-      <div className="w-1/2 mt-4">
+      <div className="lg:w-1/2 w-full mt-4">
         <img
           src="/banner.png"
           alt=""

@@ -9,12 +9,12 @@ interface PublicLayoutProps {
 
 const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen">
       {/* navbar */}
       <Navbar />
 
       {/* content */}
-      <main className={cn("flex-1 container mx-auto p-4")}>{children}</main>
+      <main className={cn("container mx-auto")}>{children}</main>
 
       {/* footer */}
       <Footer />
