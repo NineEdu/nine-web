@@ -1,14 +1,14 @@
 import { Heading } from "@/components/Heading";
 import React from "react";
-import LoginForm from "./LoginForm";
+import SignUpForm from "./SignUpForm";
 
-const LoginPage = () => {
+const SignUpPage = () => {
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
       {/* left */}
       <div className="w-full lg:w-1/2 flex items-center justify-center bg-gradient-to-br from-purple-200 via-blue-200 to-blue-300 p-6">
         <div className="w-full max-w-md">
-          <LoginForm />
+          <SignUpForm />
         </div>
       </div>
 
@@ -26,4 +26,4 @@ const LoginPage = () => {
   );
 };
 
-export default LoginPage;
+export default SignUpPage;
