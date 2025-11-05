@@ -14,7 +14,7 @@ const PublicLayout: React.FC<PublicLayoutProps> = ({ children }) => {
       <Navbar />
 
       {/* content */}
-      <main className={cn("container mx-auto")}>{children}</main>
+      <main className={cn("container mx-auto mt-14")}>{children}</main>
 
       {/* footer */}
       <Footer />

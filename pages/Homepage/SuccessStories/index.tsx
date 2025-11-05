@@ -21,14 +21,14 @@ export const testimonialsData = [
   {
     name: "Tri Doan",
     title: "Backend Developer",
-    avatarSrc: "/avatars/tri-doan.png",
+    avatarSrc: "/avatars/chi.jpg",
     quote:
       "I learned how to design user-centric Web3 experiences. The collaboration with peers was invaluable for my professional growth and perspective.",
   },
   {
     name: "My Tran",
     title: "Bussiness Analyst",
-    avatarSrc: "/avatars/my-tran.png",
+    avatarSrc: "/avatars/banton.jpg",
     quote:
       "This program opened my eyes to the power of on-chain data. It's a new frontier, and I'm excited to apply my skills to this innovative field.",
   },
