@@ -47,9 +47,9 @@ const Courses = () => {
 
         {/* course list */}
         <div className="grid lg:grid-cols-3 md:grid-cols-2 grid-cols-1 gap-6">
-          {Array.from({ length: 9 }).map((_, index) => (
-            <CourseSummary key={index} />
-          ))}
+          {/* {Array.from({ length: 9 }).map((_, index) => (
+            // <CourseSummary key={index} />
+          ))} */}
         </div>
       </div>
     </div>

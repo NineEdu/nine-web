@@ -9,59 +9,77 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form } from "@/components/ui/form";
 import { InputField } from "@/shared/components/InputField";
-import { PasswordField } from "@/shared/components/PasswordField";
+import { PasswordField } from "@/shared/components/PasswordField"; // Đảm bảo bạn đã có component này
 import Link from "next/link";
+import { useLogin } from "@/hooks/useAuth"; // Import hook vừa tạo
+import { Loader2 } from "lucide-react";
 
+// Schema giữ nguyên (sửa username -> email cho khớp API backend)
 const profileFormSchema = z.object({
-  username: z.string().nonempty("Username is required."),
+  email: z.string().email("Email không hợp lệ").nonempty("Email is required."),
   password: z.string().nonempty("Password is required."),
 });
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
 
 const LoginForm = () => {
+  // 1. Gọi hook login
+  const { mutate: login, isPending } = useLogin();
+
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
     defaultValues: {
-      username: "",
+      email: "",
       password: "",
     },
   });
 
   function onSubmit(data: ProfileFormValues) {
-    // ... (logic onSubmit)
+    // 2. Gọi hàm mutate từ hook
+    login({
+      email: data.email,
+      password: data.password,
+    });
   }
 
   return (
-    <div className="flex flex-col space-y-6 min-h-screen justify-center ">
+    <div className="flex flex-col space-y-6 min-h-screen justify-center max-w-md mx-auto px-4">
       {/* heading  */}
-      <Heading className="text-[#10069d]">Login</Heading>
+      <Heading className="text-[#10069d] text-center text-3xl font-bold">
+        Login
+      </Heading>
 
       {/* login by google */}
-      <Button className="bg-white text-black space-y-2">
+      <Button
+        variant="outline"
+        className="bg-white text-black space-y-2 w-full border-slate-200 shadow-sm"
+      >
         {/* logo  */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/1200px-Google_%22G%22_logo.svg.png"
           alt=""
-          className="w-4 h-4"
+          className="w-4 h-4 mr-2"
         />
         Login with Google
       </Button>
 
       {/* or continute with */}
       <div className="flex justify-around items-center space-x-4">
-        <div className="border-1 w-[90px] h-[1px] border-black/30" />
-        <Text>Or continue with</Text>
-        <div className="border-1 w-[90px] h-[1px] border-black/30" />
+        <div className="border-t w-full h-[1px] border-slate-200" />
+        <Text className="text-slate-500 text-xs whitespace-nowrap">
+          Or continue with
+        </Text>
+        <div className="border-t w-full h-[1px] border-slate-200" />
       </div>
 
       {/* login form  */}
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          {/* username */}
+          {/* username đổi thành email */}
           <InputField
             control={form.control}
-            name="username"
+            name="email"
             label="Email"
             placeholder="Enter your email"
           />
@@ -75,18 +93,34 @@ const LoginForm = () => {
           />
 
           {/* login button */}
-          <div>
+          <div className="space-y-4">
             {/* forgot */}
-            <Text className="text-sm text-right hover:underline cursor-pointer text-[#10069d]">
-              Forgot Your Password?
-            </Text>
-            <Button className="w-full bg-[#10069d]" type="submit">
-              Login
+            <div className="flex justify-end">
+              <Link href="/forgot-password">
+                <Text className="text-sm hover:underline cursor-pointer text-[#10069d] font-medium">
+                  Forgot Your Password?
+                </Text>
+              </Link>
+            </div>
+
+            <Button
+              className="w-full bg-[#10069d] hover:bg-[#0d0585] text-white font-bold py-2 h-11 transition-all"
+              type="submit"
+              disabled={isPending}
+            >
+              {isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Logging
+                  in...
+                </>
+              ) : (
+                "Login"
+              )}
             </Button>
           </div>
 
           {/* terms */}
-          <Text className="text-center text-sm text-gray-600">
+          <Text className="text-center text-xs text-gray-500 leading-relaxed">
             By logging in, you agree to our's{" "}
             <Link
               href={"/terms"}
@@ -99,15 +133,17 @@ const LoginForm = () => {
           </Text>
 
           {/* sign up */}
-          <Text className="text-center">
-            Don't have an account?{" "}
+          <div className="text-center text-sm">
+            <Text as="span" className="text-slate-600">
+              Don't have an account?{" "}
+            </Text>
             <Link
               href={"/signup"}
-              className="text-[#10069d] font-semibold hover:underline"
+              className="text-[#10069d] font-bold hover:underline ml-1"
             >
               Sign Up
             </Link>
-          </Text>
+          </div>
         </form>
       </Form>
     </div>
