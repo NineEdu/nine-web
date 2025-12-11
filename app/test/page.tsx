@@ -1,178 +1,189 @@
-// frontend/app/quiz-proxy/page.tsx
-"use client";
+//@ts-nocheck
+"use client"
 
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
+import { io } from "socket.io-client";
+import { Copy, CheckCircle, AlertCircle, Loader2, Send } from "lucide-react"; // Icon (nếu có cài lucide-react)
+// Nếu chưa có lucide-react: npm install lucide-react
+// Hoặc thay bằng text thường nếu không muốn cài thêm icon.
 
-export default function QuizProxyPage() {
-  const [prompt, setPrompt] = useState<string>("");
-  const [answer, setAnswer] = useState<string>("");
-  const [status, setStatus] = useState<string>("Đang chờ prompt...");
-  const wsRef = useRef<WebSocket | null>(null);
+// KẾT NỐI SOCKET (Thay PORT 5002 cho khớp backend)
+const SOCKET_URL = "http://localhost:5002";
+
+const TestRelay = () => {
+  const [socket, setSocket] = useState(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const [currentRequest, setCurrentRequest] = useState(null); // Request đang chờ
+  const [jsonInput, setJsonInput] = useState(""); // Nội dung bạn paste vào
+  const [error, setError] = useState(null);
+
+  // Ref để auto scroll hoặc focus
+  const inputRef = useRef(null);
 
   useEffect(() => {
-    const ws = new WebSocket("ws://localhost:7071");
-    wsRef.current = ws;
+    // 1. Khởi tạo kết nối
+    const newSocket = io(SOCKET_URL, {
+      withCredentials: true,
+    });
 
-    ws.onopen = () => {
-      setStatus("Connected to Relay UI");
-      console.log("[UI] connected to relay");
-    };
+    setSocket(newSocket);
 
-    ws.onmessage = (e) => {
-      try {
-        const data = JSON.parse(e.data);
-        // expected { sessionId, prompt }
-        if (data.prompt) {
-          setPrompt(data.prompt);
-          setStatus(
-            "Đã nhận prompt. Copy sang Gemini -> paste kết quả ở ô dưới."
-          );
-        }
-      } catch (err) {
-        console.warn("[UI] message parse fail:", err);
-      }
-    };
+    // 2. Lắng nghe sự kiện connect
+    newSocket.on("connect", () => {
+      setIsConnected(true);
+      console.log("🟢 Connected to Relay Server");
+      // Quan trọng: Join vào room Admin ngay khi connect
+      newSocket.emit("join_relay");
+    });
 
-    ws.onclose = () => {
-      setStatus("Disconnected from Relay");
-      console.log("[UI] disconnected");
-    };
+    newSocket.on("disconnect", () => {
+      setIsConnected(false);
+      console.log("🔴 Disconnected");
+    });
 
-    ws.onerror = (ev) => {
-      console.error("[UI] ws error", ev);
-      setStatus("WebSocket error");
-    };
+    // 3. Lắng nghe Server gửi yêu cầu tạo Quiz
+    newSocket.on("server_request_quiz", (data) => {
+      console.log("📩 Nhận request mới:", data);
+      setCurrentRequest(data);
+      // Play sound notification nếu thích (optional)
+      // new Audio('/ping.mp3').play();
+    });
 
-    return () => {
-      ws.close();
-      wsRef.current = null;
-    };
+    return () => newSocket.disconnect();
   }, []);
 
-  const handleSendBack = () => {
-    const ws = wsRef.current;
-    if (!ws || ws.readyState !== WebSocket.OPEN) {
-      alert("Không kết nối tới relay");
-      return;
+  // Hàm copy prompt nhanh
+  const handleCopyPrompt = () => {
+    if (currentRequest?.prompt) {
+      navigator.clipboard.writeText(currentRequest.prompt);
+      alert("Đã copy Prompt! Paste vào Gemini ngay.");
     }
+  };
 
-    // The UI must send back a JSON containing sessionId and answer.
-    // But this page doesn't know sessionId (it was included in incoming message).
-    // For convenience, we parse it from the last prompt message by reading a hidden field.
-    // Approach: last incoming message was JSON with sessionId; we saved prompt only.
-    // To forward sessionId, we will store last incoming raw message in a ref.
-
-    // Simpler: store lastRaw in closure (we'll implement).
-    // But for now, we expect the UI receives { sessionId, prompt } and saved it in window.lastRelay.
-    // Implement robustly below.
-    const last = (window as any).__lastRelayMessage;
-    if (!last || !last.sessionId) {
-      alert("Không có sessionId. Hãy refresh trang và đợi prompt mới.");
+  // Hàm gửi kết quả về Server
+  const handleSendBack = () => {
+    if (!jsonInput.trim()) {
+      setError("Chưa nhập JSON!");
       return;
     }
 
     try {
-      // try parse answer as JSON to be safe
-      const maybeJson = JSON.parse(answer);
-      // send { sessionId, answer: maybeJson }
-      ws.send(JSON.stringify({ sessionId: last.sessionId, answer: maybeJson }));
-    } catch {
-      // send as raw string if not JSON
-      ws.send(JSON.stringify({ sessionId: last.sessionId, answer: answer }));
-    }
+      // 1. Clean data (đề phòng copy dính markdown ```json)
+      const cleanJson = jsonInput.replace(/```json|```/g, "").trim();
 
-    setStatus("Đã gửi câu trả lời về relay");
-    setAnswer("");
+      // 2. Validate JSON
+      const parsedData = JSON.parse(cleanJson);
+
+      // 3. Gửi lại server
+      socket.emit("relay_response_quiz", {
+        requestId: currentRequest.requestId,
+        data: parsedData,
+      });
+
+      // 4. Reset trạng thái để đón request tiếp theo
+      setCurrentRequest(null);
+      setJsonInput("");
+      setError(null);
+    } catch (err) {
+      setError("JSON không hợp lệ! Hãy kiểm tra lại dấu phẩy, ngoặc kép...");
+    }
   };
 
-  // Hook to capture the raw message with sessionId
-  useEffect(() => {
-    const ws = wsRef.current;
-    if (!ws) return;
-    const handler = (e: MessageEvent) => {
-      try {
-        const parsed = JSON.parse(e.data);
-        if (parsed.sessionId) {
-          (window as any).__lastRelayMessage = parsed;
-        }
-      } catch {}
-    };
-    ws.addEventListener("message", handler);
-    return () => ws.removeEventListener("message", handler);
-  }, []);
-
   return (
-    <div style={{ padding: 24, maxWidth: 980, margin: "0 auto" }}>
-      <h1 style={{ fontSize: 28, marginBottom: 12 }}>
-        AI Relay — UI (Quiz Proxy)
-      </h1>
-      <p style={{ marginBottom: 12 }}>{status}</p>
+    <div className="min-h-screen bg-gray-50 p-6 font-sans text-gray-800">
+      {/* HEADER */}
+      <header className="flex justify-between items-center mb-6 bg-white p-4 rounded-lg shadow-sm border">
+        <div>
+          <h1 className="text-2xl font-bold text-indigo-600 flex items-center gap-2">
+            🤖 AI Relay Station
+          </h1>
+          <p className="text-sm text-gray-500">Human-in-the-loop Processing</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span
+            className={`inline-block w-3 h-3 rounded-full ${
+              isConnected ? "bg-green-500" : "bg-red-500"
+            }`}
+          ></span>
+          <span className="font-medium text-sm">
+            {isConnected ? "Connected to Server" : "Disconnected"}
+          </span>
+        </div>
+      </header>
 
-      <div style={{ marginBottom: 18 }}>
-        <label style={{ fontWeight: 600 }}>Prompt (read-only)</label>
-        <textarea
-          value={prompt}
-          readOnly
-          style={{
-            width: "100%",
-            height: 220,
-            marginTop: 8,
-            padding: 12,
-            borderRadius: 8,
-          }}
-        />
-      </div>
+      {/* MAIN CONTENT AREA */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-[calc(100vh-180px)]">
+        {/* CỘT TRÁI: INCOMING REQUEST (PROMPT) */}
+        <div className="bg-white p-6 rounded-xl shadow-sm border flex flex-col relative overflow-hidden">
+          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            📥 Incoming Request
+            {currentRequest && (
+              <span className="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded animate-pulse">
+                New!
+              </span>
+            )}
+          </h2>
 
-      <div style={{ marginBottom: 18 }}>
-        <label style={{ fontWeight: 600 }}>
-          Dán câu trả lời từ Gemini (JSON) / hoặc plain text
-        </label>
-        <textarea
-          value={answer}
-          onChange={(e) => setAnswer(e.target.value)}
-          placeholder='Paste JSON trả về từ Gemini, ví dụ: [{"questionText":"...","options":["..."], ...}]'
-          style={{
-            width: "100%",
-            height: 220,
-            marginTop: 8,
-            padding: 12,
-            borderRadius: 8,
-          }}
-        />
-      </div>
+          {!currentRequest ? (
+            <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
+              <Loader2 className="w-10 h-10 animate-spin mb-2" />
+              <p>Đang chờ request từ user...</p>
+            </div>
+          ) : (
+            <div className="flex-1 flex flex-col">
+              <div className="text-xs text-gray-400 mb-2">
+                Request ID: {currentRequest.requestId}
+              </div>
+              <div className="bg-gray-100 p-4 rounded-lg flex-1 overflow-auto font-mono text-sm whitespace-pre-wrap border border-gray-200">
+                {currentRequest.prompt}
+              </div>
+              <button
+                onClick={handleCopyPrompt}
+                className="mt-4 w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-all active:scale-95"
+              >
+                <Copy size={18} /> Copy Prompt
+              </button>
+            </div>
+          )}
+        </div>
 
-      <div style={{ display: "flex", gap: 12 }}>
-        <button
-          onClick={handleSendBack}
-          style={{
-            padding: "10px 18px",
-            background: "#2563eb",
-            color: "white",
-            border: "none",
-            borderRadius: 8,
-            cursor: "pointer",
-            fontWeight: 600,
-          }}
-        >
-          Send back to Relay
-        </button>
+        {/* CỘT PHẢI: OUTGOING RESPONSE (JSON INPUT) */}
+        <div className="bg-white p-6 rounded-xl shadow-sm border flex flex-col">
+          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            📤 Relay Response
+          </h2>
 
-        <button
-          onClick={() => {
-            navigator.clipboard?.writeText(prompt);
-            alert("Copied prompt");
-          }}
-          style={{
-            padding: "10px 18px",
-            border: "1px solid #ddd",
-            borderRadius: 8,
-            cursor: "pointer",
-            background: "white",
-          }}
-        >
-          Copy Prompt
-        </button>
+          <textarea
+            ref={inputRef}
+            className="flex-1 w-full bg-slate-900 text-green-400 font-mono text-sm p-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+            placeholder='Paste JSON kết quả từ Gemini/ChatGPT vào đây... Ví dụ: [{"questionText": "...", ...}]'
+            value={jsonInput}
+            onChange={(e) => setJsonInput(e.target.value)}
+            disabled={!currentRequest} // Chỉ cho nhập khi có request
+          ></textarea>
+
+          {error && (
+            <div className="mt-2 text-red-600 text-sm flex items-center gap-1">
+              <AlertCircle size={16} /> {error}
+            </div>
+          )}
+
+          <button
+            onClick={handleSendBack}
+            disabled={!currentRequest || !jsonInput}
+            className={`mt-4 w-full py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-all
+              ${
+                !currentRequest || !jsonInput
+                  ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                  : "bg-green-600 hover:bg-green-700 text-white active:scale-95"
+              }`}
+          >
+            <Send size={18} /> Send back to User
+          </button>
+        </div>
       </div>
     </div>
   );
-}
+};
+
+export default TestRelay;
