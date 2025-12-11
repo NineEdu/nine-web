@@ -22,6 +22,12 @@ export const authService = {
     return http.post("/auth/register", data);
   },
 
+  loginWithGoogle: async (firebaseToken: string) => {
+    return http.post("/auth/firebase", {
+      token: firebaseToken,
+    }) as Promise<AuthResponse>;
+  },
+
   getMe: async (): Promise<User> => {
     return http.get("/auth/me") as unknown as User;
   },

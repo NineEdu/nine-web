@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
 import Cookies from "js-cookie";
 import { authService } from "@/services/authServices";
+import { GoogleAuthProvider, signInWithPopup, getAuth } from "firebase/auth";
+import { app } from "@/config/firebase";
+// Đảm bảo bạn đã export 'app' từ file config firebase
 
 // Key cho React Query để cache user info
 const CURRENT_USER_KEY = ["currentUser"];
@@ -25,7 +28,9 @@ export const useLogin = () => {
     onSuccess: (data: any) => {
       if (data?.token) {
         // Lưu token vào Cookie (Hết hạn sau 7 ngày)
-        Cookies.set("token", data.token, { expires: 7 });
+        Cookies.set("token", data.token, {
+          expires: 7,
+        });
 
         // Lưu thông tin user cơ bản (để dùng nhanh nếu chưa fetch kịp API /me)
         Cookies.set(
@@ -57,6 +62,66 @@ export const useLogin = () => {
       toast.error(message);
     },
   });
+};
+
+export const useLoginGoogle = () => {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      // 1. Mở Popup Google
+      const auth = getAuth(app);
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+
+      // 2. Lấy ID Token từ Firebase
+      const idToken = await result.user.getIdToken();
+
+      // 3. Gửi Token xuống Backend để Sync
+      const data = await authService.loginWithGoogle(idToken);
+      return data;
+    },
+    onSuccess: (data: any) => {
+      handleLoginSuccess(data, router, queryClient);
+    },
+    onError: (error: any) => {
+      console.error(error);
+      // Xử lý lỗi Firebase hoặc Backend
+      let message = "Đăng nhập Google thất bại.";
+      if (error?.code === "auth/popup-closed-by-user") {
+        message = "Bạn đã đóng bảng đăng nhập.";
+      } else if (error?.response?.data?.message) {
+        message = error.response.data.message;
+      }
+      toast.error(message);
+    },
+  });
+};
+
+// --- HÀM XỬ LÝ CHUNG KHI LOGIN THÀNH CÔNG ---
+// (Tách ra để dùng chung cho cả Login thường và Google)
+const handleLoginSuccess = (data: any, router: any, queryClient: any) => {
+  if (data?.token) {
+    Cookies.set("token", data.token, { expires: 7 });
+    Cookies.set(
+      "user",
+      JSON.stringify({
+        name: data.name,
+        role: data.role,
+        avatar: data.avatar,
+      }),
+      { expires: 7 }
+    );
+  }
+  queryClient.invalidateQueries({ queryKey: CURRENT_USER_KEY });
+  toast.success("Đăng nhập thành công!");
+
+  if (data?.role === "admin" || data?.role === "instructor") {
+    router.push("/admin");
+  } else {
+    router.push("/");
+  }
 };
 
 /**

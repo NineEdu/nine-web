@@ -30,7 +30,6 @@ import { InputField } from "@/shared/components/InputField";
 import { MultiSelectV2 } from "@/shared/components/MutiSelectV2";
 
 // --- HOOKS API ---
-import { useCreateCourse } from "@/hooks/Courses/useCreateCourse";
 import { UploadV2 } from "@/shared/components/UploadV2";
 import { useCurrentUser } from "@/hooks/useAuth";
 import CourseSummary from "@/components/CourseSummary";
@@ -86,9 +85,9 @@ export default function CourseForm({
   const { data: user } = useCurrentUser();
 
   // use create courses
-  const { mutate: createCourse, isPending: isCreating } = useCreateCourse();
+  // const { mutate: createCourse, isPending: isCreating } = useCreateCourse();
   // loading
-  const isLoading = isCreating;
+  // const isLoading = isCreating;
 
   // form
   const form = useForm<CourseFormValues>({
@@ -114,7 +113,7 @@ export default function CourseForm({
     if (initialData) {
       console.log("Update payload:", payload);
     } else {
-      createCourse(payload);
+      // createCourse(payload);
     }
   };
 
@@ -179,7 +178,7 @@ export default function CourseForm({
               {/* preview */}
               <div className="space-y-2 flex justify-center flex-col  items-center">
                 <Text className="font-bold">Preview</Text>
-                <CourseSummary key={"tt"} />
+                {/* <CourseSummary  key={"tt"} /> */}
               </div>
             </div>
 
@@ -303,10 +302,10 @@ export default function CourseForm({
 
                 <Button
                   type="submit"
-                  disabled={isLoading}
+                  // disabled={isLoading}
                   className="rounded-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold"
                 >
-                  {isLoading ? (
+                  {false ? (
                     <>
                       <Loader2 className="mr-2 h-5 w-5 animate-spin" />{" "}
                       Saving...

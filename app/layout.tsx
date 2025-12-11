@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import QueryProvider from "@/components/providers/query-provider";
 import { Toaster } from "react-hot-toast";
+import { ToastContainer } from "react-toastify";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -24,7 +25,8 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${inter.variable} antialiased`}>
         <Toaster />
-        <QueryProvider>{children} </QueryProvider>
+        <ToastContainer position="top-center" />
+          <QueryProvider>{children} </QueryProvider>
       </body>
     </html>
   );

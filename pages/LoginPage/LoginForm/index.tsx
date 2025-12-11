@@ -9,12 +9,12 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form } from "@/components/ui/form";
 import { InputField } from "@/shared/components/InputField";
-import { PasswordField } from "@/shared/components/PasswordField"; // Đảm bảo bạn đã có component này
+import { PasswordField } from "@/shared/components/PasswordField";
 import Link from "next/link";
-import { useLogin } from "@/hooks/useAuth"; // Import hook vừa tạo
+// IMPORT THÊM USELOGINGOOGLE
+import { useLogin, useLoginGoogle } from "@/hooks/useAuth";
 import { Loader2 } from "lucide-react";
 
-// Schema giữ nguyên (sửa username -> email cho khớp API backend)
 const profileFormSchema = z.object({
   email: z.string().email("Email không hợp lệ").nonempty("Email is required."),
   password: z.string().nonempty("Password is required."),
@@ -23,8 +23,11 @@ const profileFormSchema = z.object({
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
 
 const LoginForm = () => {
-  // 1. Gọi hook login
-  const { mutate: login, isPending } = useLogin();
+  // 1. Hook Login thường
+  const { mutate: login, isPending: isLoginPending } = useLogin();
+
+  // 2. Hook Login Google
+  const { mutate: loginGoogle, isPending: isGooglePending } = useLoginGoogle();
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
@@ -35,7 +38,6 @@ const LoginForm = () => {
   });
 
   function onSubmit(data: ProfileFormValues) {
-    // 2. Gọi hàm mutate từ hook
     login({
       email: data.email,
       password: data.password,
@@ -44,24 +46,34 @@ const LoginForm = () => {
 
   return (
     <div className="flex flex-col space-y-6 min-h-screen justify-center max-w-md mx-auto px-4">
-      {/* heading  */}
       <Heading className="text-[#10069d] text-center text-3xl font-bold">
         Login
       </Heading>
 
-      {/* login by google */}
+      {/* --- LOGIN BY GOOGLE BUTTON --- */}
       <Button
+        type="button"
         variant="outline"
-        className="bg-white text-black space-y-2 w-full border-slate-200 shadow-sm"
+        onClick={() => loginGoogle()} // This triggers the mutation chain
+        disabled={isGooglePending || isLoginPending}
+        className="bg-white text-black space-y-2 w-full border-slate-200 shadow-sm relative h-11"
       >
-        {/* logo  */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/1200px-Google_%22G%22_logo.svg.png"
-          alt=""
-          className="w-4 h-4 mr-2"
-        />
-        Login with Google
+        {isGooglePending ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Connecting Google...
+          </>
+        ) : (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/1200px-Google_%22G%22_logo.svg.png"
+              alt="Google"
+              className="w-4 h-4 mr-2"
+            />
+            Login with Google
+          </>
+        )}
       </Button>
 
       {/* or continute with */}
@@ -76,25 +88,24 @@ const LoginForm = () => {
       {/* login form  */}
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          {/* username đổi thành email */}
           <InputField
             control={form.control}
             name="email"
             label="Email"
             placeholder="Enter your email"
+            // Disable input khi đang login google
+            disabled={isLoginPending || isGooglePending}
           />
 
-          {/* password */}
           <PasswordField
             control={form.control}
             name="password"
             label="Password"
             placeholder="Enter your password"
+            disabled={isLoginPending || isGooglePending}
           />
 
-          {/* login button */}
           <div className="space-y-4">
-            {/* forgot */}
             <div className="flex justify-end">
               <Link href="/forgot-password">
                 <Text className="text-sm hover:underline cursor-pointer text-[#10069d] font-medium">
@@ -106,9 +117,9 @@ const LoginForm = () => {
             <Button
               className="w-full bg-[#10069d] hover:bg-[#0d0585] text-white font-bold py-2 h-11 transition-all"
               type="submit"
-              disabled={isPending}
+              disabled={isLoginPending || isGooglePending}
             >
-              {isPending ? (
+              {isLoginPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Logging
                   in...
@@ -119,7 +130,7 @@ const LoginForm = () => {
             </Button>
           </div>
 
-          {/* terms */}
+          {/* ... phần footer giữ nguyên ... */}
           <Text className="text-center text-xs text-gray-500 leading-relaxed">
             By logging in, you agree to our's{" "}
             <Link
@@ -132,7 +143,6 @@ const LoginForm = () => {
             </Link>
           </Text>
 
-          {/* sign up */}
           <div className="text-center text-sm">
             <Text as="span" className="text-slate-600">
               Don't have an account?{" "}
