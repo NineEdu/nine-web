@@ -1,4 +1,4 @@
-import CourseDetail from "@/pages/CourseDetail";
+import CourseDetail from "@/pages/Courses/Detail";
 import PublicLayout from "@/shared/layouts/PublicLayout";
 import React from "react";
 

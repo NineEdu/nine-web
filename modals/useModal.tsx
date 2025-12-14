@@ -14,7 +14,6 @@ import { useTimeout } from "usehooks-ts";
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // 2. Local implementation of compareId
-// Dùng để so sánh tham số đầu vào của atomFamily (là object { id })
 const compareId = (a: { id: string }, b: { id: string }) => a.id === b.id;
 
 // --- State ---

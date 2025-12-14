@@ -129,7 +129,6 @@ export function UploadV2<T extends FieldValues>({
 
           <FormControl>
             <div className="w-full">
-              {/* --- A. PREVIEW STATE (Giao diện Card như ảnh 2) --- */}
               {value ? (
                 <div className="relative w-full max-w-md bg-slate-50/50 border border-slate-200 rounded-[24px] p-4 group transition-all hover:shadow-sm">
                   {/* Header Card */}

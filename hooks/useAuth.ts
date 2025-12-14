@@ -2,23 +2,15 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { toast } from "react-hot-toast";
 import Cookies from "js-cookie";
 import { authService } from "@/services/authServices";
 import { GoogleAuthProvider, signInWithPopup, getAuth } from "firebase/auth";
 import { app } from "@/config/firebase";
-// Đảm bảo bạn đã export 'app' từ file config firebase
+import { notifyError, notifySuccess } from "@/components/Notify";
 
-// Key cho React Query để cache user info
 const CURRENT_USER_KEY = ["currentUser"];
 
-/**
- * 1. HOOK ĐĂNG NHẬP
- * - Gọi API login
- * - Lưu token vào Cookie
- * - Lưu sơ bộ user info
- * - Chuyển hướng trang
- */
+// login hook
 export const useLogin = () => {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -27,12 +19,12 @@ export const useLogin = () => {
     mutationFn: authService.login,
     onSuccess: (data: any) => {
       if (data?.token) {
-        // Lưu token vào Cookie (Hết hạn sau 7 ngày)
+        // save token
         Cookies.set("token", data.token, {
           expires: 7,
         });
 
-        // Lưu thông tin user cơ bản (để dùng nhanh nếu chưa fetch kịp API /me)
+        // save basic info
         Cookies.set(
           "user",
           JSON.stringify({
@@ -44,12 +36,12 @@ export const useLogin = () => {
         );
       }
 
-      // Làm mới cache user để UI (Navbar) tự cập nhật avatar/tên
+      // refresh cache
       queryClient.invalidateQueries({ queryKey: CURRENT_USER_KEY });
 
-      toast.success("Đăng nhập thành công!");
+      notifySuccess("Login successful.");
 
-      // Chuyển hướng dựa trên Role (Admin vào trang quản trị, User về trang chủ)
+      // redirect by role
       if (data?.role === "admin" || data?.role === "instructor") {
         router.push("/admin");
       } else {
@@ -58,27 +50,28 @@ export const useLogin = () => {
     },
     onError: (error: any) => {
       const message =
-        error?.response?.data?.message || "Email hoặc mật khẩu không đúng.";
-      toast.error(message);
+        error?.response?.data?.message || "Invalid email or password.";
+      notifyError(message);
     },
   });
 };
 
+// google login hook
 export const useLoginGoogle = () => {
   const router = useRouter();
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async () => {
-      // 1. Mở Popup Google
+      // firebase auth
       const auth = getAuth(app);
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
 
-      // 2. Lấy ID Token từ Firebase
+      // get id token
       const idToken = await result.user.getIdToken();
 
-      // 3. Gửi Token xuống Backend để Sync
+      // sync with backend
       const data = await authService.loginWithGoogle(idToken);
       return data;
     },
@@ -87,20 +80,18 @@ export const useLoginGoogle = () => {
     },
     onError: (error: any) => {
       console.error(error);
-      // Xử lý lỗi Firebase hoặc Backend
-      let message = "Đăng nhập Google thất bại.";
+      let message = "Google login failed.";
       if (error?.code === "auth/popup-closed-by-user") {
-        message = "Bạn đã đóng bảng đăng nhập.";
+        message = "Login popup closed.";
       } else if (error?.response?.data?.message) {
         message = error.response.data.message;
       }
-      toast.error(message);
+      notifyError(message);
     },
   });
 };
 
-// --- HÀM XỬ LÝ CHUNG KHI LOGIN THÀNH CÔNG ---
-// (Tách ra để dùng chung cho cả Login thường và Google)
+// handle success helper
 const handleLoginSuccess = (data: any, router: any, queryClient: any) => {
   if (data?.token) {
     Cookies.set("token", data.token, { expires: 7 });
@@ -115,7 +106,7 @@ const handleLoginSuccess = (data: any, router: any, queryClient: any) => {
     );
   }
   queryClient.invalidateQueries({ queryKey: CURRENT_USER_KEY });
-  toast.success("Đăng nhập thành công!");
+  notifySuccess("Login successful.");
 
   if (data?.role === "admin" || data?.role === "instructor") {
     router.push("/admin");
@@ -124,62 +115,49 @@ const handleLoginSuccess = (data: any, router: any, queryClient: any) => {
   }
 };
 
-/**
- * 2. HOOK ĐĂNG KÝ
- */
+// register hook
 export const useRegister = () => {
   const router = useRouter();
   return useMutation({
     mutationFn: authService.register,
     onSuccess: () => {
-      toast.success("Đăng ký thành công! Vui lòng đăng nhập.");
+      notifySuccess("Registration successful! Please login.");
       router.push("/login");
     },
     onError: (error: any) => {
-      const message = error?.response?.data?.message || "Đăng ký thất bại.";
-      toast.error(message);
+      const message = error?.response?.data?.message || "Registration failed.";
+      notifyError(message);
     },
   });
 };
 
-/**
- * 3. HOOK LẤY USER HIỆN TẠI (Current User)
- * - Tự động chạy khi có Token trong Cookie
- */
+// get current user hook
 export const useCurrentUser = () => {
   return useQuery({
     queryKey: CURRENT_USER_KEY,
-    queryFn: authService.getMe, // Gọi API /auth/me để lấy thông tin mới nhất
-    // Chỉ fetch khi có token trong Cookie
+    queryFn: authService.getMe,
+    // fetch only if token exists
     enabled: !!Cookies.get("token"),
-    // Không retry nếu lỗi 401 (Unauthorized) -> Tránh vòng lặp vô tận
     retry: false,
-    // Data được coi là "tươi" trong 5 phút
     staleTime: 5 * 60 * 1000,
   });
 };
 
-/**
- * 4. HOOK ĐĂNG XUẤT (Logout)
- * - Xóa Cookie
- * - Xóa Cache
- * - Chuyển về trang Login
- */
+// logout hook
 export const useLogout = () => {
   const router = useRouter();
   const queryClient = useQueryClient();
 
   return () => {
-    // 1. Xóa Cookie
+    // remove cookies
     Cookies.remove("token");
     Cookies.remove("user");
 
-    // 2. Xóa dữ liệu User trong Cache của React Query
+    // clear cache
     queryClient.setQueryData(CURRENT_USER_KEY, null);
-    // Hoặc invalidate để đảm bảo sạch sẽ hoàn toàn
     queryClient.invalidateQueries({ queryKey: CURRENT_USER_KEY });
 
-    toast.success("Đã đăng xuất");
+    notifySuccess("Logged out successfully.");
     router.push("/login");
   };
 };

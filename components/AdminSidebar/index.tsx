@@ -14,44 +14,55 @@ import {
 } from "@/components/ui/collapsible";
 import {
   LayoutDashboard,
-  Table as TableIcon,
   ChevronDown,
-  BarChart3,
   BookOpen,
   Users,
+  Banknote,
 } from "lucide-react";
 
-// --- 1. ĐỊNH NGHĨA DỮ LIỆU MENU ---
 const sidebarData = [
   {
-    group: "ADMIN DASHBOARD",
+    group: "DASHBOARD",
     items: [
       {
         title: "Overview",
         icon: LayoutDashboard,
-        href: "/admin", // Gọi API stats hiển thị 3 cái thẻ số to đùng
+        href: "/admin",
       },
+    ],
+  },
+  {
+    group: "CONTENT & USERS",
+    items: [
       {
         title: "Manage Users",
-        icon: Users, // Import từ lucide-react
-        href: "/admin/users", // Gọi API getAllUsers hiển thị Table
+        icon: Users,
+        href: "/admin/users",
       },
       {
         title: "Manage Courses",
         icon: BookOpen,
-        href: "/admin/courses", // Gọi API getCourses (bỏ filter)
+        href: "/admin/courses",
+      },
+    ],
+  },
+  {
+    group: "FINANCE",
+    items: [
+      {
+        title: "Transactions",
+        icon: Banknote,
+        href: "/admin/transactions",
       },
     ],
   },
 ];
 
-// --- 2. COMPONENT MENU ITEM RIÊNG LẺ ---
 const MenuItem = ({ item }: { item: any }) => {
-  const pathname = usePathname(); // Logic check active link (NextJS)
+  const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const isActive = pathname === item.href;
 
-  // Nếu có submenu -> Dùng Collapsible
   if (item.submenu) {
     return (
       <Collapsible open={isOpen} onOpenChange={setIsOpen} className="w-full">
@@ -60,7 +71,6 @@ const MenuItem = ({ item }: { item: any }) => {
             variant="ghost"
             className={cn(
               "w-full justify-between hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 font-medium",
-              // Sửa: Dùng text-primary thay vì text-purple-600
               isOpen && "bg-slate-100 text-primary dark:bg-slate-800"
             )}
           >
@@ -88,7 +98,6 @@ const MenuItem = ({ item }: { item: any }) => {
             <Link
               key={index}
               href={subItem.href}
-              // Sửa: Dùng hover:text-primary thay vì hover:text-purple-600
               className="block py-2 text-sm text-slate-500 hover:text-primary transition-colors"
             >
               {subItem.title}
@@ -99,14 +108,12 @@ const MenuItem = ({ item }: { item: any }) => {
     );
   }
 
-  // Nếu không có submenu -> Link thường
   return (
     <Button
       asChild
       variant="ghost"
       className={cn(
-        "w-full justify-start gap-3 hover:bg-slate-100 text-slate-600 dark:text-slate-300 font-medium",
-        // Sửa: Dùng text-primary cho trạng thái active
+        "w-full justify-start gap-3 hover:bg-slate-100 text-slate-600 dark:text-slate-300 font-medium rounded-none",
         isActive && "bg-slate-100 text-primary"
       )}
     >
@@ -123,23 +130,14 @@ const MenuItem = ({ item }: { item: any }) => {
   );
 };
 
-// --- 3. COMPONENT SIDEBAR CHÍNH ---
 export function AdminSidebar() {
   return (
     <div className="h-screen w-[280px] border-r bg-white dark:bg-slate-950 flex flex-col">
       {/* HEADER LOGO */}
-      <div className="h-20 flex items-center px-6 gap-2">
-        {/* Sửa: Dùng bg-primary thay vì bg-purple-600 */}
-        <div className="bg-primary p-1.5 rounded-lg">
-          <BarChart3 className="h-6 w-6 text-primary-foreground" />
-        </div>
-        {/* Sửa: Đổi tên thành NineEdu */}
-        <span className="text-2xl font-bold text-slate-800 dark:text-white">
-          NineEdu
-        </span>
+      <div className=" p-6 flex items-center justify-center">
+        <img src="/dark-logo.png" alt="" className="" />
       </div>
 
-      {/* SCROLL AREA CONTENT */}
       <ScrollArea className="flex-1 px-4 py-4">
         <div className="space-y-6">
           {sidebarData.map((group, index) => (

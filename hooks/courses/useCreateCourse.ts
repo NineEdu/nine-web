@@ -1,32 +1,40 @@
-//@ts-nocheck
-
-"use client";
-
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-
-import toast from "react-hot-toast";
-
 import courseApis from "@/shared/apis/courseApis";
+import { notifySuccess, notifyError } from "@/components/Notify";
+import { useRouter } from "next/navigation";
 
 const useCreateCourse = () => {
   const queryClient = useQueryClient();
+  const router = useRouter();
 
-  return useMutation({
-    mutationFn: (bodyPayload) => {
-      return courseApis.createCourse(bodyPayload);
-    },
+  const mutation = useMutation({
+    mutationFn: (payload: any) => courseApis.createCourse(payload),
 
-    onSuccess: (data) => {
-      toast.success("Tạo khóa học thành công!");
+    onSuccess: (res: any) => {
+      notifySuccess("Khóa học đã được tạo thành công!");
       queryClient.invalidateQueries({ queryKey: ["getCourses"] });
+
+      const createdCourse = res?.data?.data ?? res?.data ?? res;
+
+      const courseId = createdCourse?._id || createdCourse?.id;
+
+      if (courseId) {
+        router.push(`/courses/${courseId}/edit`);
+        return;
+      }
+
+      router.push("/admin/courses");
     },
 
-    onError: (error) => {
-      const msg = error?.response?.data?.message || "Tạo thất bại";
-
-      toast.error(msg);
+    onError: (error: any) => {
+      notifyError(error?.response?.data?.message || "Tạo khóa học thất bại");
     },
   });
+
+  return {
+    createCourse: mutation.mutateAsync,
+    ...mutation,
+  };
 };
 
 export default useCreateCourse;

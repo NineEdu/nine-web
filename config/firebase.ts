@@ -17,18 +17,13 @@ const firebaseConfig = {
   measurementId: "G-427XGLMY2D",
 };
 
-// 1. Khởi tạo App (Singleton Pattern để tránh lỗi init nhiều lần khi hot-reload)
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
-// 2. Khởi tạo Auth (Cần thiết cho chức năng Login của bạn)
 const auth = getAuth(app);
 
-// 3. Khởi tạo Analytics (CHỈ CHẠY Ở CLIENT/BROWSER)
 let analytics;
 
-// Kiểm tra xem có đang ở môi trường trình duyệt không
 if (typeof window !== "undefined") {
-  // Kiểm tra xem trình duyệt có hỗ trợ Analytics không
   isSupported().then((isSupported) => {
     if (isSupported) {
       analytics = getAnalytics(app);
@@ -36,5 +31,4 @@ if (typeof window !== "undefined") {
   });
 }
 
-// 4. Export ra để dùng ở chỗ khác
 export { app, auth, analytics };

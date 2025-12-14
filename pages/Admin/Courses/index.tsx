@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   MoreHorizontal,
@@ -13,7 +13,10 @@ import {
   CheckCircle,
   FileText,
   DollarSign,
-  TrendingUp,
+  Loader2,
+  EyeOff,
+  ArrowUpRight,
+  ExternalLink,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -46,13 +49,28 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // Nếu chưa có component Card thì dùng div với class border
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 
-// Interface mô phỏng dữ liệu từ API
+// hooks & api
+import useGetManageCourses from "@/hooks/courses/useGetManageCourses";
+import useGetCourseStats from "@/hooks/courses/useGetCourseStats";
+import useDeleteCourse from "@/hooks/courses/useDeleteCourse";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import courseApis from "@/shared/apis/courseApis";
+import { notifySuccess, notifyError } from "@/components/Notify";
+import formatCurrency from "@/utils/formatCurrency";
+
 interface Course {
   _id: string;
   title: string;
-  instructorId: {
+  instructorId?: {
     fullName: string;
     avatar: string;
   };
@@ -60,362 +78,445 @@ interface Course {
   isPublished: boolean;
   category: string;
   createdAt: string;
+  thumbnail?: string;
 }
 
 export default function ManageCourses() {
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
+  const queryClient = useQueryClient();
 
-  // State cho Delete Dialog
+  // state
+  const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+
+  // debounce search
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
+
+  // fetch data
+  const { data: coursesResponse, isLoading: isLoadingCourses } =
+    useGetManageCourses({
+      queryParams: {
+        keyword: debouncedSearchTerm,
+        isPublished:
+          filterStatus === "all" ? undefined : filterStatus === "published",
+        sort: "newest",
+      },
+    });
+
+  const courses: Course[] = coursesResponse?.data || [];
+  const pagination = coursesResponse?.pagination;
+
+  const { data: stats, isLoading: isLoadingStats } = useGetCourseStats();
+
+  // delete logic
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  //@ts-ignore
+  const { deleteCourse, isPending: isDeleting } = useDeleteCourse();
 
-  // 1. Fetch dữ liệu từ API
-  useEffect(() => {
-    const fetchCourses = async () => {
-      try {
-        // Mock Data
-        const mockData = [
-          {
-            _id: "1",
-            title: "ReactJS từ cơ bản đến nâng cao",
-            instructorId: { fullName: "Quốc Dev", avatar: "" },
-            price: 500000,
-            isPublished: true,
-            category: "Web Development",
-            createdAt: "2025-11-20",
-          },
-          {
-            _id: "2",
-            title: "NodeJS & Express Masterclass",
-            instructorId: { fullName: "Souta", avatar: "" },
-            price: 0,
-            isPublished: false,
-            category: "Backend",
-            createdAt: "2025-11-25",
-          },
-          {
-            _id: "3",
-            title: "UI/UX Design for Beginners",
-            instructorId: { fullName: "Design Team", avatar: "" },
-            price: 1200000,
-            isPublished: true,
-            category: "Design",
-            createdAt: "2025-12-01",
-          },
-        ];
-        setCourses(mockData);
-      } catch (error) {
-        console.error("Lỗi fetch:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchCourses();
-  }, []);
-
-  // 2. Xử lý xóa khóa học
   const handleDelete = async () => {
     if (!deleteId) return;
-    try {
-      console.log("Đang xóa course ID:", deleteId);
-      setCourses(courses.filter((c) => c._id !== deleteId));
-      setIsDeleteDialogOpen(false);
-    } catch (error) {
-      console.error("Xóa thất bại", error);
-    }
+    await deleteCourse({ courseId: deleteId });
+    setIsDeleteDialogOpen(false);
+    setDeleteId(null);
+    queryClient.invalidateQueries({ queryKey: ["getManageCourses"] });
+    queryClient.invalidateQueries({ queryKey: ["getCourseStats"] });
   };
 
-  // 3. Filter tìm kiếm
-  const filteredCourses = courses.filter(
-    (course) =>
-      course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      course.instructorId.fullName
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase())
-  );
-
-  // Helper format tiền tệ
-  const formatCurrency = (amount: number) => {
-    return amount === 0
-      ? "Miễn phí"
-      : new Intl.NumberFormat("vi-VN", {
-          style: "currency",
-          currency: "VND",
-        }).format(amount);
-  };
-
-  // --- TÍNH TOÁN THỐNG KÊ (NEW) ---
-  const totalCourses = courses.length;
-  const publishedCourses = courses.filter((c) => c.isPublished).length;
-  const draftCourses = totalCourses - publishedCourses;
-  // Giả sử tính tổng giá trị các khóa học (hoặc doanh thu giả định)
-  const totalValue = courses.reduce((acc, curr) => acc + curr.price, 0);
+  // toggle publish logic
+  const toggleMutation = useMutation({
+    mutationFn: async (course: Course) => {
+      return await courseApis.updateCourse({
+        courseId: course._id,
+        dataToUpdate: { isPublished: !course.isPublished },
+      });
+    },
+    onSuccess: () => {
+      notifySuccess("Status updated");
+      queryClient.invalidateQueries({ queryKey: ["getManageCourses"] });
+      queryClient.invalidateQueries({ queryKey: ["getCourseStats"] });
+    },
+    onError: () => notifyError("Update failed"),
+  });
 
   return (
-    <div className="p-6 space-y-6 bg-slate-50 min-h-screen">
-      {/* HEADER: Tiêu đề + Nút tạo mới */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+    <div className="p-6 space-y-6 bg-slate-50 min-h-screen font-sans text-sm">
+      {/* header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            Quản lý khóa học
+          <h1 className="text-xl font-bold uppercase tracking-tight text-slate-900">
+            Course Management
           </h1>
-          <p className="text-muted-foreground text-sm">
-            Tổng quan và quản lý tất cả các khóa học trên hệ thống NineEdu.
+          <p className="text-slate-500 text-xs mt-1">
+            Manage content, moderate courses, and track revenue.
           </p>
         </div>
         <Button
           asChild
-          variant="outline"
+          className="bg-[#020080] hover:bg-blue-900 rounded-sm h-9 text-xs uppercase font-semibold shadow-sm"
         >
           <Link href="/admin/courses/create">
-            <Plus className="mr-2 h-4 w-4" /> Tạo khóa học mới
+            <Plus className="mr-2 h-3.5 w-3.5" /> Create New
           </Link>
         </Button>
       </div>
 
-      {/* --- SECTION 1: THỐNG KÊ (OVERVIEW) --- */}
+      {/* stats cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {/* Card 1: Tổng số */}
-        <div className="rounded-xl border bg-white p-6 shadow-sm">
-          <div className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <h3 className="tracking-tight text-sm font-medium text-slate-500">
-              Tổng khóa học
+        {/* total */}
+        <div className="bg-white border border-slate-200 p-4 shadow-sm rounded-sm">
+          <div className="flex flex-row items-center justify-between pb-2">
+            <h3 className="text-[10px] font-bold uppercase text-slate-500 tracking-wider">
+              Total Courses
             </h3>
             <BookOpen className="h-4 w-4 text-slate-400" />
           </div>
           <div className="text-2xl font-bold text-slate-900">
-            {totalCourses}
+            {isLoadingStats ? "-" : stats?.totalCourses || 0}
           </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            +2 khóa mới trong tháng này
-          </p>
         </div>
 
-        {/* Card 2: Đang hoạt động */}
-        <div className="rounded-xl border bg-white p-6 shadow-sm">
-          <div className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <h3 className="tracking-tight text-sm font-medium text-slate-500">
-              Đang hoạt động
+        {/* published */}
+        <div className="bg-white border border-slate-200 p-4 shadow-sm rounded-sm">
+          <div className="flex flex-row items-center justify-between pb-2">
+            <h3 className="text-[10px] font-bold uppercase text-slate-500 tracking-wider">
+              Published
             </h3>
-            <CheckCircle className="h-4 w-4 text-green-500" />
+            <CheckCircle className="h-4 w-4 text-green-600" />
           </div>
           <div className="text-2xl font-bold text-slate-900">
-            {publishedCourses}
+            {isLoadingStats ? "-" : stats?.publishedCourses || 0}
           </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            Hiển thị công khai trên web
-          </p>
         </div>
 
-        {/* Card 3: Bản nháp */}
-        <div className="rounded-xl border bg-white p-6 shadow-sm">
-          <div className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <h3 className="tracking-tight text-sm font-medium text-slate-500">
-              Bản nháp (Draft)
+        {/* draft */}
+        <div className="bg-white border border-slate-200 p-4 shadow-sm rounded-sm">
+          <div className="flex flex-row items-center justify-between pb-2">
+            <h3 className="text-[10px] font-bold uppercase text-slate-500 tracking-wider">
+              Drafts
             </h3>
             <FileText className="h-4 w-4 text-orange-500" />
           </div>
           <div className="text-2xl font-bold text-slate-900">
-            {draftCourses}
+            {isLoadingStats ? "-" : stats?.draftCourses || 0}
           </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            Cần chỉnh sửa thêm
-          </p>
         </div>
 
-        {/* Card 4: Tổng giá trị */}
-        <div className="rounded-xl border bg-white p-6 shadow-sm">
-          <div className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <h3 className="tracking-tight text-sm font-medium text-slate-500">
-              Tổng giá trị niêm yết
+        {/* value */}
+        <div className="bg-white border border-slate-200 p-4 shadow-sm rounded-sm">
+          <div className="flex flex-row items-center justify-between pb-2">
+            <h3 className="text-[10px] font-bold uppercase text-slate-500 tracking-wider">
+              Total Value
             </h3>
-            <DollarSign className="h-4 w-4 text-primary" />
+            <DollarSign className="h-4 w-4 text-blue-600" />
           </div>
-          <div className="text-2xl font-bold text-slate-900">
-            {formatCurrency(totalValue)}
+          <div
+            className="text-xl font-bold text-slate-900 truncate"
+            title={formatCurrency(stats?.totalValue || 0)}
+          >
+            {isLoadingStats ? "-" : formatCurrency(stats?.totalValue || 0)}
           </div>
-          <p className="text-xs text-green-600 flex items-center mt-1 font-medium">
-            <TrendingUp className="h-3 w-3 mr-1" /> +12% so với tháng trước
-          </p>
         </div>
       </div>
 
-      {/* --- SECTION 2: DANH SÁCH KHÓA HỌC --- */}
-      <div className="space-y-4">
-        {/* Toolbar */}
-        <div className="flex items-center gap-2 bg-white p-2 rounded-lg border shadow-sm">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <Input
-              placeholder="Tìm kiếm theo tên khóa học, giảng viên..."
-              className="pl-9 border-none bg-transparent focus-visible:ring-0"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <div className="h-6 w-[1px] bg-slate-200 mx-2"></div>
-          <Button variant="ghost" size="sm" className="text-slate-600">
-            <Filter className="h-4 w-4 mr-2" /> Bộ lọc
-          </Button>
+      {/* toolbar */}
+      <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 bg-white p-3 border border-slate-200 shadow-sm rounded-sm">
+        {/* search */}
+        <div className="sm:col-span-9 relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <Input
+            placeholder="Search by title..."
+            className="pl-9 rounded-sm border-slate-300 focus-visible:ring-0 focus-visible:border-indigo-600 h-9"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
         </div>
 
-        {/* Table */}
-        <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
+        {/* filter */}
+        <div className="sm:col-span-3">
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger className="w-full rounded-sm border-slate-300 h-9 focus:ring-0">
+              <div className="flex items-center gap-2 text-slate-600 text-xs">
+                <Filter className="h-3.5 w-3.5" />
+                <SelectValue placeholder="Status" />
+              </div>
+            </SelectTrigger>
+            <SelectContent className="rounded-sm border-slate-200">
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="published">Published</SelectItem>
+              <SelectItem value="draft">Draft</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* table */}
+      <div className="bg-white border border-slate-200 shadow-sm rounded-sm overflow-hidden">
+        {isLoadingCourses ? (
+          <div className="flex flex-col items-center justify-center p-20">
+            <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+            <p className="mt-2 text-xs text-slate-500">Loading courses...</p>
+          </div>
+        ) : (
           <Table>
-            <TableHeader className="bg-slate-50">
-              <TableRow>
-                <TableHead className="w-[80px] pl-6">Ảnh</TableHead>
-                <TableHead className="w-[300px]">Thông tin khóa học</TableHead>
-                <TableHead>Giảng viên</TableHead>
-                <TableHead>Trạng thái</TableHead>
-                <TableHead className="text-right">Học phí</TableHead>
-                <TableHead className="w-[50px] pr-6"></TableHead>
+            <TableHeader className="bg-slate-50 border-b border-slate-200">
+              <TableRow className="hover:bg-slate-50">
+                <TableHead className="w-[80px] pl-4 font-bold text-slate-700 h-10 uppercase text-[10px] tracking-wide">
+                  Image
+                </TableHead>
+                <TableHead className="w-[350px] font-bold text-slate-700 h-10 uppercase text-[10px] tracking-wide">
+                  Course Info
+                </TableHead>
+                <TableHead className="font-bold text-slate-700 h-10 uppercase text-[10px] tracking-wide">
+                  Instructor
+                </TableHead>
+                <TableHead className="font-bold text-slate-700 h-10 uppercase text-[10px] tracking-wide">
+                  Status
+                </TableHead>
+                <TableHead className="text-right font-bold text-slate-700 h-10 uppercase text-[10px] tracking-wide">
+                  Price
+                </TableHead>
+                <TableHead className="w-[50px] pr-4 h-10"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredCourses.map((course) => (
-                <TableRow key={course._id} className="hover:bg-slate-50/50">
-                  {/* 1. Ảnh thumbnail */}
-                  <TableCell className="pl-6 py-4">
-                    <div className="h-12 w-20 bg-slate-100 rounded-lg overflow-hidden border border-slate-200">
-                      <div className="w-full h-full flex items-center justify-center text-xs text-slate-400 font-medium">
-                        IMG
-                      </div>
-                    </div>
-                  </TableCell>
+              {courses.length > 0 ? (
+                courses.map((course) => (
+                  <TableRow
+                    key={course._id}
+                    className="hover:bg-slate-50 border-b border-slate-100 last:border-0 transition-colors"
+                  >
+                    {/* thumbnail */}
+                    <TableCell className="pl-4 py-3">
+                      <Link href={`/admin/courses/${course._id}`}>
+                        <div className="h-10 w-16 bg-slate-100 border border-slate-200 relative shrink-0 overflow-hidden rounded-sm">
+                          {course.thumbnail ? (
+                            <img
+                              src={course.thumbnail}
+                              alt=""
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-[9px] text-slate-400 font-bold uppercase">
+                              No Img
+                            </div>
+                          )}
+                        </div>
+                      </Link>
+                    </TableCell>
 
-                  {/* 2. Tên & Category */}
-                  <TableCell>
-                    <div className="flex flex-col gap-1">
-                      <div
-                        className="font-semibold text-slate-900 truncate max-w-[280px]"
-                        title={course.title}
-                      >
-                        {course.title}
-                      </div>
-                      <Badge
-                        variant="outline"
-                        className="w-fit text-[10px] h-5 font-normal text-slate-500 border-slate-200"
-                      >
-                        {course.category}
-                      </Badge>
-                    </div>
-                  </TableCell>
-
-                  {/* 3. Giảng viên */}
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-8 w-8 border border-slate-100">
-                        <AvatarImage src={course.instructorId.avatar} />
-                        <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                          {course.instructorId.fullName.charAt(0)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="text-sm font-medium text-slate-700">
-                        {course.instructorId.fullName}
-                      </span>
-                    </div>
-                  </TableCell>
-
-                  {/* 4. Trạng thái Badge */}
-                  <TableCell>
-                    <Badge
-                      variant={course.isPublished ? "default" : "secondary"}
-                      className={
-                        course.isPublished
-                          ? "bg-green-100 text-green-700 hover:bg-green-100 border-none shadow-none"
-                          : "bg-slate-100 text-slate-600 hover:bg-slate-100 border-none shadow-none"
-                      }
-                    >
-                      {course.isPublished ? "Published" : "Draft"}
-                    </Badge>
-                  </TableCell>
-
-                  {/* 5. Giá tiền */}
-                  <TableCell className="text-right font-medium text-slate-900">
-                    {formatCurrency(course.price)}
-                  </TableCell>
-
-                  {/* 6. Action Menu */}
-                  <TableCell className="pr-6">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          className="h-8 w-8 p-0 rounded-full hover:bg-slate-100"
-                        >
-                          <MoreHorizontal className="h-4 w-4 text-slate-500" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-40">
-                        <DropdownMenuLabel>Hành động</DropdownMenuLabel>
-                        <DropdownMenuItem asChild>
-                          <Link
-                            href={`/admin/courses/edit/${course._id}`}
-                            className="cursor-pointer"
+                    {/* info */}
+                    <TableCell>
+                      <Link href={`/admin/courses/${course._id}`}>
+                        <div className="flex flex-col gap-1">
+                          <span
+                            className="font-semibold text-slate-900 text-sm truncate max-w-[350px] hover:text-indigo-600 transition-colors"
+                            title={course.title}
                           >
-                            <Pencil className="mr-2 h-4 w-4 text-slate-500" />{" "}
-                            Chỉnh sửa
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          className="text-red-600 focus:text-red-600 cursor-pointer focus:bg-red-50"
-                          onClick={() => {
-                            setDeleteId(course._id);
-                            setIsDeleteDialogOpen(true);
-                          }}
+                            {course.title}
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <Badge
+                              variant="secondary"
+                              className="rounded-sm border-slate-200 text-[10px] font-medium text-slate-500 bg-slate-100 h-5 px-1.5 shadow-none"
+                            >
+                              {course.category || "General"}
+                            </Badge>
+                            <span className="text-[10px] text-slate-400 font-mono">
+                              ID: {course._id.slice(-6).toUpperCase()}
+                            </span>
+                          </div>
+                        </div>
+                      </Link>
+                    </TableCell>
+
+                    {/* instructor */}
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Avatar className="h-6 w-6 border border-slate-200">
+                          <AvatarImage src={course.instructorId?.avatar} />
+                          <AvatarFallback className="bg-indigo-50 text-indigo-600 text-[9px] font-bold">
+                            {course.instructorId?.fullName?.[0] || "A"}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="text-xs text-slate-600 truncate max-w-[120px]">
+                          {course.instructorId?.fullName || "Admin"}
+                        </span>
+                      </div>
+                    </TableCell>
+
+                    {/* status */}
+                    <TableCell>
+                      {course.isPublished ? (
+                        <Badge className="bg-green-100 text-green-700 border-green-200 hover:bg-green-100 rounded-sm shadow-none font-medium px-2 py-0.5">
+                          Published
+                        </Badge>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className="bg-slate-100 text-slate-500 border-slate-300 rounded-sm font-medium px-2 py-0.5"
                         >
-                          <Trash2 className="mr-2 h-4 w-4" /> Xóa khóa học
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                          Draft
+                        </Badge>
+                      )}
+                    </TableCell>
+
+                    {/* price */}
+                    <TableCell className="text-right font-semibold text-slate-900">
+                      {course.price === 0 ? (
+                        <span className="text-green-600 text-xs uppercase font-bold">
+                          Free
+                        </span>
+                      ) : (
+                        formatCurrency(course.price)
+                      )}
+                    </TableCell>
+
+                    {/* actions */}
+                    <TableCell className="pr-4 text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            className="h-8 w-8 p-0 rounded-sm hover:bg-slate-200"
+                          >
+                            <MoreHorizontal className="h-4 w-4 text-slate-500" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                          align="end"
+                          className="w-48 rounded-sm border-slate-200 shadow-md"
+                        >
+                          <DropdownMenuLabel className="text-[10px] uppercase text-slate-400 tracking-wider font-bold px-2 py-1.5">
+                            Actions
+                          </DropdownMenuLabel>
+                          <DropdownMenuSeparator className="bg-slate-100" />
+
+                          <DropdownMenuItem
+                            asChild
+                            className="rounded-sm cursor-pointer text-xs"
+                          >
+                            <Link href={`/admin/courses/${course._id}`}>
+                              <ExternalLink className="mr-2 h-3.5 w-3.5 text-slate-500" />
+                              Manage Course
+                            </Link>
+                          </DropdownMenuItem>
+
+                          <DropdownMenuItem
+                            asChild
+                            className="rounded-sm cursor-pointer text-xs"
+                          >
+                            <Link
+                              href={`/admin/courses/${course._id}/settings`}
+                            >
+                              <Pencil className="mr-2 h-3.5 w-3.5 text-slate-500" />
+                              Edit Details
+                            </Link>
+                          </DropdownMenuItem>
+
+                          <DropdownMenuItem
+                            className="cursor-pointer rounded-sm text-xs"
+                            onClick={() => toggleMutation.mutate(course)}
+                          >
+                            {course.isPublished ? (
+                              <>
+                                <EyeOff className="mr-2 h-3.5 w-3.5 text-orange-500" />
+                                Unpublish
+                              </>
+                            ) : (
+                              <>
+                                <ArrowUpRight className="mr-2 h-3.5 w-3.5 text-green-600" />
+                                Publish Now
+                              </>
+                            )}
+                          </DropdownMenuItem>
+
+                          <DropdownMenuSeparator className="bg-slate-100" />
+
+                          <DropdownMenuItem
+                            className="text-red-600 focus:text-red-700 focus:bg-red-50 cursor-pointer rounded-sm text-xs"
+                            onClick={() => {
+                              setDeleteId(course._id);
+                              setIsDeleteDialogOpen(true);
+                            }}
+                          >
+                            <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-32 text-center">
+                    <div className="flex flex-col items-center justify-center text-slate-400">
+                      <Search className="h-6 w-6 mb-2 opacity-20" />
+                      <p className="text-xs font-medium">No courses found.</p>
+                      <p className="text-[10px] text-slate-400 mt-1">
+                        Try adjusting your search or filters.
+                      </p>
+                    </div>
                   </TableCell>
                 </TableRow>
-              ))}
+              )}
             </TableBody>
           </Table>
-
-          {/* Empty State */}
-          {filteredCourses.length === 0 && (
-            <div className="flex flex-col items-center justify-center p-12 text-center">
-              <div className="bg-slate-50 p-4 rounded-full mb-3">
-                <Search className="h-6 w-6 text-slate-400" />
-              </div>
-              <p className="text-slate-900 font-medium">
-                Không tìm thấy kết quả
-              </p>
-              <p className="text-slate-500 text-sm mt-1">
-                Thử thay đổi từ khóa tìm kiếm hoặc bộ lọc.
-              </p>
-            </div>
-          )}
-        </div>
+        )}
       </div>
 
-      {/* DIALOG: Xác nhận xóa */}
+      {/* pagination */}
+      {pagination && (
+        <div className="flex justify-between items-center border border-slate-200 bg-white p-2 px-4 rounded-sm shadow-sm text-xs text-slate-500">
+          <span>
+            Total:{" "}
+            <span className="font-bold text-slate-700">
+              {pagination.totalCourses}
+            </span>{" "}
+            items
+          </span>
+          <span>Page {pagination.currentPage}</span>
+        </div>
+      )}
+
+      {/* delete dialog */}
       <AlertDialog
         open={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}
       >
-        <AlertDialogContent>
+        <AlertDialogContent className="rounded-sm border-slate-200 max-w-md">
           <AlertDialogHeader>
-            <AlertDialogTitle>Xóa khóa học này?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Hành động này sẽ xóa vĩnh viễn khóa học và toàn bộ dữ liệu bài
-              học, bài kiểm tra liên quan. Bạn không thể hoàn tác.
+            <AlertDialogTitle className="text-red-600 flex items-center gap-2 text-lg">
+              <Trash2 className="w-5 h-5" /> Delete Course?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-600 text-sm">
+              This action cannot be undone. All lessons, quizzes, and student
+              enrollments associated with this course will be permanently
+              removed.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Hủy bỏ</AlertDialogCancel>
+            <AlertDialogCancel
+              disabled={isDeleting}
+              className="rounded-sm border-slate-300 h-9 text-xs"
+            >
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
-              className="bg-red-600 hover:bg-red-700 text-white"
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700 text-white rounded-sm shadow-sm h-9 text-xs"
             >
-              Xóa vĩnh viễn
+              {isDeleting ? (
+                <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                "Confirm Delete"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

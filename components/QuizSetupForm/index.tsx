@@ -4,9 +4,8 @@ import React, { useEffect, useState } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Plus, Trash2, Save, Loader2, Sparkles } from "lucide-react";
+import { Plus, Trash2, Save, Loader2, Sparkles, Wand2 } from "lucide-react";
 
-// UI Components
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,7 +24,6 @@ import useModal from "@/modals/useModal";
 import quizApis from "@/shared/apis/quizApis";
 import { notifyError, notifyInfo, notifySuccess } from "../Notify";
 
-// --- SCHEMA ---
 const questionSchema = z.object({
   questionText: z.string().min(1, "Question is required"),
   options: z
@@ -92,7 +90,6 @@ export const QuizSetupForm = ({
     name: "questions",
   });
 
-  // 1. Fetch Quiz Data
   const fetchQuiz = async () => {
     try {
       setIsLoading(true);
@@ -112,7 +109,7 @@ export const QuizSetupForm = ({
         });
       }
     } catch (error) {
-      console.log("No existing quiz found, ready to create new one.");
+      console.log("No existing quiz found");
     } finally {
       setIsLoading(false);
     }
@@ -122,38 +119,32 @@ export const QuizSetupForm = ({
     if (lessonId) fetchQuiz();
   }, [lessonId]);
 
-  // --- HÀM GỌI AI ---
   const handleGenerateAI = async () => {
     if (!lessonTitle) {
-      notifyError("Không tìm thấy nội dung bài học để tạo câu hỏi");
+      notifyError("Lesson content not found for generation");
       return;
     }
 
     try {
       setIsGenerating(true);
-      notifyInfo("AI processing...");
+      notifyInfo("Analyzing lesson content...");
 
-      // Gọi API AI (đảm bảo bạn đã implement aiApis.generateQuiz ở frontend)
       const questions = await quizApis.generateQuiz(lessonTitle);
 
       if (questions && Array.isArray(questions) && questions.length > 0) {
-        // Thay thế toàn bộ câu hỏi hiện tại bằng câu hỏi của AI
         replace(questions);
-        notifySuccess(`Successfully generated ${questions.length} questions!`);
+        notifySuccess(`Generated ${questions.length} questions`);
       } else {
-        notifyError("AI returned no valid questions.");
+        notifyError("No valid questions generated");
       }
     } catch (error) {
-      notifyError(
-        "AI is busy or encountered an error. Please try again later."
-      );
+      notifyError("Generation failed, please try again");
       console.error(error);
     } finally {
       setIsGenerating(false);
     }
   };
 
-  // 2. Handle Submit
   const onSubmit = async (data: QuizFormValues) => {
     try {
       if (existingQuizId) {
@@ -161,34 +152,32 @@ export const QuizSetupForm = ({
           quizId: existingQuizId,
           data: { ...data, lessonId, courseId },
         });
-        notifySuccess("Quiz updated successfully!");
+        notifySuccess("Quiz updated");
       } else {
         await quizApis.createQuiz({
           ...data,
           lessonId,
           courseId,
         });
-        notifySuccess("Quiz created successfully!");
+        notifySuccess("Quiz created");
       }
       await fetchQuiz();
       if (onSuccess) onSuccess();
     } catch (error: any) {
-      notifyError(error.message || "Failed to save quiz");
+      notifyError(error.message || "Save failed");
     }
   };
 
-  // 3. Handle Delete
   const onDeleteQuiz = () => {
     showConfirmModal({
       title: "Delete Quiz",
-      content:
-        "Are you sure you want to delete this quiz? This action cannot be undone.",
+      content: "This action cannot be undone.",
       labels: { cancel: "Cancel", action: "Delete" },
       onAction: async () => {
         try {
           if (existingQuizId) {
             await quizApis.deleteQuiz({ quizId: existingQuizId });
-            notifySuccess("Quiz deleted successfully");
+            notifySuccess("Quiz deleted");
             setExistingQuizId(null);
             reset({
               title: "",
@@ -205,7 +194,7 @@ export const QuizSetupForm = ({
             if (onSuccess) onSuccess();
           }
         } catch (error: any) {
-          notifyError(error.message || "Failed to delete quiz");
+          notifyError(error.message || "Delete failed");
         }
       },
       async: true,
@@ -239,23 +228,23 @@ export const QuizSetupForm = ({
             </p>
           </div>
           <div className="flex items-center gap-2">
-            {/* --- NÚT AI --- */}
+            {/* ai generation button */}
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               onClick={handleGenerateAI}
               disabled={isGenerating || isSubmitting}
-              className="bg-indigo-50 text-indigo-600 border-indigo-200 hover:bg-indigo-100 hover:text-indigo-700"
+              className=""
             >
               {isGenerating ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generating...
+                  Thinking...
                 </>
               ) : (
                 <>
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  Auto-Generate
+                  <Wand2 className="mr-2 h-4 w-4" />
+                  AI Gen Quizz
                 </>
               )}
             </Button>
@@ -265,7 +254,7 @@ export const QuizSetupForm = ({
                 type="button"
                 variant="outline"
                 size="sm"
-                className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+                className="text-red-600 border-red-200 hover:bg-red-50"
                 onClick={onDeleteQuiz}
               >
                 <Trash2 className="w-4 h-4 mr-2" /> Delete
@@ -274,22 +263,20 @@ export const QuizSetupForm = ({
             <Button
               type="submit"
               disabled={isSubmitting || isGenerating}
-              className="bg-indigo-600 hover:bg-indigo-700"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
             >
               <Save className="w-4 h-4 mr-2" />
-              {isSubmitting
-                ? "Saving..."
-                : existingQuizId
-                ? "Update Quiz"
-                : "Create Quiz"}
+              {isSubmitting ? "Saving..." : "Save Changes"}
             </Button>
           </div>
         </div>
 
-        {/* Quiz Info */}
-        <Card>
+        {/* general info */}
+        <Card className="border-slate-200 shadow-sm">
           <CardHeader>
-            <CardTitle className="text-base">General Information</CardTitle>
+            <CardTitle className="text-base font-semibold">
+              General Information
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -298,14 +285,19 @@ export const QuizSetupForm = ({
                 <Input
                   {...register("title")}
                   placeholder="e.g. Final Assessment"
+                  className="bg-slate-50"
                 />
                 {errors.title && (
                   <p className="text-red-500 text-xs">{errors.title.message}</p>
                 )}
               </div>
               <div className="space-y-2">
-                <Label>Passing Score (Number of correct answers)</Label>
-                <Input type="number" {...register("passingScore")} />
+                <Label>Passing Score</Label>
+                <Input
+                  type="number"
+                  {...register("passingScore")}
+                  className="bg-slate-50"
+                />
                 {errors.passingScore && (
                   <p className="text-red-500 text-xs">
                     {errors.passingScore.message}
@@ -316,13 +308,16 @@ export const QuizSetupForm = ({
           </CardContent>
         </Card>
 
-        {/* Questions List */}
+        {/* questions list */}
         <div className="space-y-4">
           {fields?.map((field, qIndex) => {
             const currentOptions = watch(`questions.${qIndex}.options`);
 
             return (
-              <Card key={field.id} className="relative overflow-hidden group">
+              <Card
+                key={field.id}
+                className="relative overflow-hidden group border-slate-200 shadow-sm transition-all hover:shadow-md"
+              >
                 <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500" />
                 <CardContent className="pt-6 pl-6 pr-10">
                   <Button
@@ -337,13 +332,13 @@ export const QuizSetupForm = ({
 
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label className="text-xs font-bold uppercase text-slate-500">
+                      <Label className="text-xs font-bold uppercase text-slate-500 tracking-wider">
                         Question {qIndex + 1}
                       </Label>
                       <Textarea
                         {...register(`questions.${qIndex}.questionText`)}
-                        placeholder="Enter the question here..."
-                        className="resize-none"
+                        placeholder="Type your question here..."
+                        className="resize-none bg-slate-50 min-h-[80px]"
                       />
                       {errors.questions?.[qIndex]?.questionText && (
                         <p className="text-red-500 text-xs">
@@ -355,7 +350,7 @@ export const QuizSetupForm = ({
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {currentOptions?.map((_, oIndex) => (
                         <div key={oIndex} className="flex items-center gap-2">
-                          <div className="h-6 w-6 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500">
+                          <div className="h-8 w-8 rounded-lg bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-600 border border-slate-200">
                             {String.fromCharCode(65 + oIndex)}
                           </div>
                           <Input
@@ -363,12 +358,13 @@ export const QuizSetupForm = ({
                               `questions.${qIndex}.options.${oIndex}`
                             )}
                             placeholder={`Option ${oIndex + 1}`}
+                            className="bg-white"
                           />
                         </div>
                       ))}
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-100 mt-2">
                       <div className="space-y-2">
                         <Label>Correct Answer</Label>
                         <Select
@@ -377,7 +373,7 @@ export const QuizSetupForm = ({
                           }
                           value={watch(`questions.${qIndex}.correctAnswer`)}
                         >
-                          <SelectTrigger>
+                          <SelectTrigger className="bg-slate-50">
                             <SelectValue placeholder="Select correct option" />
                           </SelectTrigger>
                           <SelectContent>
@@ -404,7 +400,8 @@ export const QuizSetupForm = ({
                         <Label>Explanation (Optional)</Label>
                         <Input
                           {...register(`questions.${qIndex}.explanation`)}
-                          placeholder="Why is this correct?"
+                          placeholder="Explain why this is correct..."
+                          className="bg-slate-50"
                         />
                       </div>
                     </div>
@@ -418,7 +415,7 @@ export const QuizSetupForm = ({
         <Button
           type="button"
           variant="outline"
-          className="w-full border-dashed border-2 py-8 hover:border-indigo-500 hover:text-indigo-600"
+          className="w-full border-dashed border-2 py-8 text-slate-500 hover:border-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 transition-all"
           onClick={() =>
             append({
               questionText: "",
@@ -428,7 +425,7 @@ export const QuizSetupForm = ({
             })
           }
         >
-          <Plus className="w-4 h-4 mr-2" /> Add Question
+          <Plus className="w-5 h-5 mr-2" /> Add New Question
         </Button>
       </form>
     </ScrollArea>

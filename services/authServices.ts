@@ -6,6 +6,8 @@ export interface User {
   email: string;
   role: "admin" | "instructor" | "student";
   avatar?: string;
+  enrolledCourses?: string[];
+  createdAt: string;
 }
 
 export interface AuthResponse {

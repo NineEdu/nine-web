@@ -5,7 +5,7 @@ import { Text } from "../Text";
 import { Button } from "../ui/button";
 import Link from "next/link";
 
-// Định nghĩa kiểu dữ liệu cho Course (dựa trên seeder data của bạn)
+// interfaces
 interface Course {
   _id?: string;
   title: string;
@@ -21,12 +21,12 @@ interface CourseSummaryProps {
 }
 
 const CourseSummary: React.FC<CourseSummaryProps> = ({ course }) => {
-  // Destructuring dữ liệu từ prop course
+  // destructure
   const { title, description, thumbnail, price, category, level } = course;
 
-  // Helper: Format giá tiền VNĐ
+  // price helper
   const formatPrice = (amount: number) => {
-    if (amount === 0) return "Miễn phí";
+    if (amount === 0) return "Free";
     return new Intl.NumberFormat("vi-VN", {
       style: "currency",
       currency: "VND",
@@ -36,26 +36,25 @@ const CourseSummary: React.FC<CourseSummaryProps> = ({ course }) => {
   return (
     <Link href={`/courses/${course._id || ""}`}>
       <div className="bg-white rounded-xl shadow-sm border p-4 flex flex-col gap-3 h-full transition-all hover:shadow-md group">
-        {/* Img Container */}
+        {/* image container */}
         <div className="w-full h-40 rounded-lg overflow-hidden shadow-sm relative">
           <img
             src={thumbnail}
             alt={title}
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
           />
-          {/* Category Badge - Hiển thị góc trên ảnh */}
+          {/* badge */}
           <span className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm text-white text-[10px] uppercase font-bold px-2 py-1 rounded">
             {category}
           </span>
         </div>
 
-        {/* Title */}
-        {/* line-clamp-1: Giới hạn 1 dòng, thừa sẽ hiện dấu ... */}
+        {/* title */}
         <Text className="font-semibold text-lg line-clamp-1" title={title}>
           {title}
         </Text>
 
-        {/* Meta Info: Level & Price */}
+        {/* meta info */}
         <div className="flex items-center justify-between">
           <span className="text-xs font-medium px-2 py-1 bg-gray-100 text-gray-600 rounded-md">
             {level}
@@ -69,8 +68,7 @@ const CourseSummary: React.FC<CourseSummaryProps> = ({ course }) => {
           </span>
         </div>
 
-        {/* Description */}
-        {/* line-clamp-2: Giới hạn 2 dòng */}
+        {/* description */}
         <Text
           className="text-sm text-gray-600 line-clamp-2 min-h-[40px]"
           title={description}
@@ -78,9 +76,9 @@ const CourseSummary: React.FC<CourseSummaryProps> = ({ course }) => {
           {description}
         </Text>
 
-        {/* Button */}
+        {/* action button */}
         <Button className="mt-auto w-full bg-blue-600 hover:bg-blue-700 text-white">
-          Xem khóa học
+          View Course
         </Button>
       </div>
     </Link>

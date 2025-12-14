@@ -33,6 +33,24 @@ const enrollmentApis = {
       body: { courseId, lessonId },
     });
   },
+
+  // --- PAYMENT APIs (VNPAY) ---
+
+  // 1. Tạo URL thanh toán (Updated)
+  // Backend cần: { courseId, amount }
+  createPaymentUrl: ({ courseId, amount }) => {
+    return POST(`/payment/create_payment_url`, {
+      body: { courseId, amount },
+    });
+  },
+
+  // 2. Xác thực kết quả trả về từ VNPAY (New)
+  // Backend cần nhận toàn bộ query params để check chữ ký (checksum)
+  vnpayReturn: (params) => {
+    // Chuyển object params thành query string (vd: ?vnp_Amount=...&vnp_ResponseCode=...)
+    const queryString = new URLSearchParams(params).toString();
+    return GET(`/payment/vnpay_return?${queryString}`);
+  },
 };
 
 export default enrollmentApis;

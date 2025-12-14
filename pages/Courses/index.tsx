@@ -21,7 +21,7 @@ import { Filter, Loader2, Search, SortAsc, X } from "lucide-react";
 import React, { useEffect, useState } from "react";
 
 const Courses = () => {
-  // -- Main State (State chính thức dùng để gọi API) --
+  // main state
   const [searchText, setSearchText] = useState("");
   const [debouncedSearchText, setDebouncedSearchText] = useState("");
 
@@ -34,15 +34,15 @@ const Courses = () => {
 
   const [appliedSort, setAppliedSort] = useState("newest");
 
-  // -- UI State (State tạm thời trong Popover) --
+  // ui state
   const [filterOpen, setFilterOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
 
-  // State tạm lưu giá trị khi người dùng đang thao tác trong Popover
+  // temp state for popovers
   const [tempFilter, setTempFilter] = useState(appliedFilter);
   const [tempSort, setTempSort] = useState(appliedSort);
 
-  // Debounce search text
+  // debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchText(searchText);
@@ -50,7 +50,7 @@ const Courses = () => {
     return () => clearTimeout(timer);
   }, [searchText]);
 
-  // Đồng bộ state tạm khi mở popover (Reset về giá trị đang áp dụng nếu mở lại)
+  // sync temp state on open
   useEffect(() => {
     if (filterOpen) {
       setTempFilter(appliedFilter);
@@ -63,13 +63,12 @@ const Courses = () => {
     }
   }, [sortOpen, appliedSort]);
 
-  // -- Data Fetching --
+  // fetch data
   const { data, isFetching: isLoading } = useGetCourses({
-    // Thêm dependencies vào queryKey để auto-refetch
     queryKey: ["courses", debouncedSearchText, appliedFilter, appliedSort],
     queryParams: {
       keyword: debouncedSearchText,
-      // Logic: Nếu là 'all' hoặc rỗng thì gửi undefined để backend bỏ qua
+      // clean params
       category:
         appliedFilter.category === "all" ? undefined : appliedFilter.category,
       level: appliedFilter.level === "all" ? undefined : appliedFilter.level,
@@ -81,21 +80,19 @@ const Courses = () => {
 
   const courses = data?.data;
 
-  // -- Handlers --
-
-  // Apply Filter: Đẩy state tạm -> state chính
+  // apply filter
   const handleApplyFilter = () => {
     setAppliedFilter(tempFilter);
     setFilterOpen(false);
   };
 
-  // Apply Sort
+  // apply sort
   const handleApplySort = () => {
     setAppliedSort(tempSort);
     setSortOpen(false);
   };
 
-  // Reset toàn bộ
+  // reset all
   const handleResetAll = () => {
     setSearchText("");
     setAppliedFilter({
@@ -107,7 +104,7 @@ const Courses = () => {
     setAppliedSort("newest");
   };
 
-  // Kiểm tra xem có đang filter gì không (để hiện chấm đỏ hoặc nút xóa)
+  // check active filters
   const isFiltering =
     searchText !== "" ||
     appliedFilter.category !== "all" ||
@@ -116,35 +113,35 @@ const Courses = () => {
     appliedFilter.maxPrice !== "" ||
     appliedSort !== "newest";
 
-  // Helper update state tạm cho filter
+  // update temp filter helper
   const updateTempFilter = (key: string, value: string) => {
     setTempFilter((prev) => ({ ...prev, [key]: value }));
   };
 
   return (
     <div className="min-h-screen w-full container mx-auto p-4 py-8 space-y-8">
-      {/* --- Header: Search & Toolbar --- */}
+      {/* header toolbar */}
       <div className="flex flex-col lg:flex-row gap-4 justify-between items-end lg:items-center">
-        {/* 1. Search Box */}
+        {/* search box */}
         <div className="w-full lg:max-w-md relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
           <Input
-            placeholder="Tìm kiếm khóa học..."
+            placeholder="Search courses..."
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             className="pl-9"
           />
         </div>
 
-        {/* 2. Actions */}
+        {/* actions */}
         <div className="flex items-center gap-2 w-full lg:w-auto justify-end">
-          {/* --- POPOVER LỌC (Nâng cấp) --- */}
+          {/* filter popover */}
           <Popover open={filterOpen} onOpenChange={setFilterOpen}>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
                 className={`flex items-center gap-2 border-gray-300 hover:bg-gray-100 ${
-                  // Logic highlight nút: Nếu có bất kỳ filter nào khác default
+                  // highlight if active
                   appliedFilter.category !== "all" ||
                   appliedFilter.level !== "all" ||
                   appliedFilter.minPrice ||
@@ -154,7 +151,7 @@ const Courses = () => {
                 }`}
               >
                 <Filter className="w-4 h-4" />
-                Lọc
+                Filter
                 {(appliedFilter.category !== "all" ||
                   appliedFilter.level !== "all" ||
                   appliedFilter.minPrice ||
@@ -164,27 +161,27 @@ const Courses = () => {
               </Button>
             </PopoverTrigger>
 
-            {/* Nội dung Popover */}
+            {/* popover content */}
             <PopoverContent className="w-[340px] p-0" align="end">
               <div className="p-4 border-b bg-gray-50/50">
-                <Text className="font-semibold">Bộ lọc tìm kiếm</Text>
+                <Text className="font-semibold">Search Filters</Text>
               </div>
 
               <div className="p-4 space-y-5">
-                {/* 1. Danh mục */}
+                {/* category */}
                 <div className="space-y-2">
                   <Text size="sm" className="font-medium text-gray-700">
-                    Danh mục
+                    Category
                   </Text>
                   <Select
                     value={tempFilter.category}
                     onValueChange={(val) => updateTempFilter("category", val)}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Chọn danh mục" />
+                      <SelectValue placeholder="Select category" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">Tất cả danh mục</SelectItem>
+                      <SelectItem value="all">All Categories</SelectItem>
                       <SelectItem value="Frontend">Frontend</SelectItem>
                       <SelectItem value="Backend">Backend</SelectItem>
                       <SelectItem value="Fullstack">Fullstack</SelectItem>
@@ -193,42 +190,36 @@ const Courses = () => {
                   </Select>
                 </div>
 
-                {/* 2. Trình độ (Mới) */}
+                {/* level */}
                 <div className="space-y-2">
                   <Text size="sm" className="font-medium text-gray-700">
-                    Trình độ
+                    Level
                   </Text>
                   <Select
                     value={tempFilter.level}
                     onValueChange={(val) => updateTempFilter("level", val)}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Chọn trình độ" />
+                      <SelectValue placeholder="Select level" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all">Tất cả trình độ</SelectItem>
-                      <SelectItem value="Beginner">
-                        Người mới (Beginner)
-                      </SelectItem>
-                      <SelectItem value="Intermediate">
-                        Trung cấp (Intermediate)
-                      </SelectItem>
-                      <SelectItem value="Advanced">
-                        Nâng cao (Advanced)
-                      </SelectItem>
+                      <SelectItem value="all">All Levels</SelectItem>
+                      <SelectItem value="Beginner">Beginner</SelectItem>
+                      <SelectItem value="Intermediate">Intermediate</SelectItem>
+                      <SelectItem value="Advanced">Advanced</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
-                {/* 3. Khoảng giá (Mới) */}
+                {/* price range */}
                 <div className="space-y-2">
                   <Text size="sm" className="font-medium text-gray-700">
-                    Khoảng giá (VNĐ)
+                    Price Range
                   </Text>
                   <div className="flex items-center gap-2">
                     <Input
                       type="number"
-                      placeholder="Thấp nhất"
+                      placeholder="Min"
                       value={tempFilter.minPrice}
                       onChange={(e) =>
                         updateTempFilter("minPrice", e.target.value)
@@ -238,7 +229,7 @@ const Courses = () => {
                     <span className="text-gray-400">-</span>
                     <Input
                       type="number"
-                      placeholder="Cao nhất"
+                      placeholder="Max"
                       value={tempFilter.maxPrice}
                       onChange={(e) =>
                         updateTempFilter("maxPrice", e.target.value)
@@ -249,23 +240,23 @@ const Courses = () => {
                 </div>
               </div>
 
-              {/* Footer */}
+              {/* footer */}
               <div className="p-4 border-t bg-gray-50 flex justify-end gap-2 rounded-b-lg">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setFilterOpen(false)}
                 >
-                  Hủy bỏ
+                  Cancel
                 </Button>
                 <Button size="sm" onClick={handleApplyFilter}>
-                  Áp dụng
+                  Apply
                 </Button>
               </div>
             </PopoverContent>
           </Popover>
 
-          {/* --- POPOVER SẮP XẾP --- */}
+          {/* sort popover */}
           <Popover open={sortOpen} onOpenChange={setSortOpen}>
             <PopoverTrigger asChild>
               <Button
@@ -273,26 +264,28 @@ const Courses = () => {
                 className="flex items-center gap-2 border-gray-300 hover:bg-gray-100"
               >
                 <SortAsc className="w-4 h-4" />
-                {appliedSort === "newest" ? "Mới nhất" : "Sắp xếp"}
+                {appliedSort === "newest" ? "Newest" : "Sort"}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-[280px] p-0" align="end">
               <div className="p-4 border-b bg-gray-50/50">
-                <Text className="font-semibold">Sắp xếp theo</Text>
+                <Text className="font-semibold">Sort by</Text>
               </div>
               <div className="p-4">
                 <Select value={tempSort} onValueChange={setTempSort}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Chọn kiểu sắp xếp" />
+                    <SelectValue placeholder="Select sort type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="newest">Mới nhất</SelectItem>
-                    <SelectItem value="oldest">Cũ nhất</SelectItem>
-                    <SelectItem value="price_asc">Giá: Thấp đến Cao</SelectItem>
-                    <SelectItem value="price_desc">
-                      Giá: Cao đến Thấp
+                    <SelectItem value="newest">Newest</SelectItem>
+                    <SelectItem value="oldest">Oldest</SelectItem>
+                    <SelectItem value="price_asc">
+                      Price: Low to High
                     </SelectItem>
-                    <SelectItem value="name_asc">Tên: A-Z</SelectItem>
+                    <SelectItem value="price_desc">
+                      Price: High to Low
+                    </SelectItem>
+                    <SelectItem value="name_asc">Name: A-Z</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -302,16 +295,16 @@ const Courses = () => {
                   size="sm"
                   onClick={() => setSortOpen(false)}
                 >
-                  Hủy bỏ
+                  Cancel
                 </Button>
                 <Button size="sm" onClick={handleApplySort}>
-                  Áp dụng
+                  Apply
                 </Button>
               </div>
             </PopoverContent>
           </Popover>
 
-          {/* Nút Xóa bộ lọc */}
+          {/* clear filter button */}
           {isFiltering && (
             <Button
               variant="ghost"
@@ -319,29 +312,27 @@ const Courses = () => {
               onClick={handleResetAll}
               className="text-red-500 hover:bg-red-50 hover:text-red-600"
             >
-              <X className="w-4 h-4 mr-1" /> Xóa bộ lọc
+              <X className="w-4 h-4 mr-1" /> Clear filters
             </Button>
           )}
         </div>
       </div>
 
-      {/* --- Kết quả --- */}
+      {/* results info */}
       <div className="flex items-center justify-between border-b pb-4">
         <Text size="lg" className="font-medium">
           {isLoading
-            ? "Đang tải dữ liệu..."
-            : `Tìm thấy ${courses?.length || 0} khóa học`}
+            ? "Loading data..."
+            : `Found ${courses?.length || 0} courses`}
         </Text>
       </div>
 
-      {/* --- Danh sách khóa học --- */}
+      {/* course list */}
       <div className="w-full">
         {isLoading ? (
           <div className="flex flex-col justify-center items-center py-20 gap-4">
             <Loader2 className="w-10 h-10 animate-spin text-blue-600" />
-            <Text className="text-gray-500">
-              Đang tìm kiếm khóa học phù hợp...
-            </Text>
+            <Text className="text-gray-500">Searching for courses...</Text>
           </div>
         ) : courses && courses.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -352,14 +343,14 @@ const Courses = () => {
         ) : (
           <div className="text-center py-20 bg-gray-50 rounded-lg border border-dashed">
             <Text className="text-gray-500 font-medium mb-2">
-              Không tìm thấy khóa học nào phù hợp.
+              No courses found.
             </Text>
             <Button
               variant="link"
               onClick={handleResetAll}
               className="text-blue-600"
             >
-              Xóa bộ lọc và thử lại
+              Clear filters and try again
             </Button>
           </div>
         )}

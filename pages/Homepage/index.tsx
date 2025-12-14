@@ -2,7 +2,6 @@ import React from "react";
 import Banner from "./Banner";
 import OurCourses from "./OurCourses";
 import Certi from "./Certificate";
-import NewAndReasearch from "./NewAndResearch";
 import SuccessStories from "./SuccessStories";
 
 const Homepage = () => {
@@ -16,9 +15,6 @@ const Homepage = () => {
 
       {/* certificate */}
       <Certi />
-
-      {/* news */}
-      <NewAndReasearch />
 
       {/* stories */}
       <SuccessStories />

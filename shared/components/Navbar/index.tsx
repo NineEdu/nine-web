@@ -21,6 +21,7 @@ import {
   Moon,
   LayoutDashboard,
   Loader2,
+  ChevronDown,
 } from "lucide-react";
 
 // Import Hooks xác thực
@@ -29,7 +30,7 @@ import { useCurrentUser, useLogout } from "@/hooks/useAuth";
 export function Navbar() {
   const { theme, setTheme } = useTheme();
 
-  // 1. Lấy thông tin User hiện tại từ Hook (Tự động fetch nếu có cookie)
+  // 1. Lấy thông tin User hiện tại từ Hook
   const { data: user, isLoading } = useCurrentUser();
 
   // 2. Lấy hàm đăng xuất
@@ -45,17 +46,25 @@ export function Navbar() {
           <img
             src="/nine-logo.png"
             alt="NineEdu"
-            className="h-[45px] object-contain"
+            className="h-[45px] object-cover"
           />
         </Link>
 
-        <ul className="hidden md:flex space-x-6 pl-4 text-white font-semibold">
+        <ul className="hidden md:flex items-center space-x-6 pl-4 text-white font-semibold">
           <li>
             <Link
               href="/"
               className="hover:underline hover:text-indigo-200 transition-all"
             >
               Home
+            </Link>
+          </li>
+          <li>
+            <Link
+              href="/courses"
+              className="hover:underline hover:text-indigo-200 transition-all"
+            >
+              Courses
             </Link>
           </li>
           <li>
@@ -129,26 +138,38 @@ export function Navbar() {
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
 
-              {/* Chỉ hiện Dashboard nếu là Admin/Instructor */}
-              {(user.role === "admin" || user.role === "instructor") && (
-                <DropdownMenuItem asChild>
-                  <Link
-                    href="/admin"
-                    className="cursor-pointer w-full flex items-center"
-                  >
-                    <LayoutDashboard className="mr-2 h-4 w-4" />
-                    <span>Dashboard</span>
-                  </Link>
-                </DropdownMenuItem>
-              )}
+              {/* DASHBOARD LINK */}
+              <DropdownMenuItem asChild>
+                <Link
+                  href={
+                    user.role === "admin" || user.role === "instructor"
+                      ? "/admin"
+                      : "/student"
+                  }
+                  className="cursor-pointer w-full flex items-center"
+                >
+                  <LayoutDashboard className="h-4 w-4" />
+                  <span>Dashboard</span>
+                </Link>
+              </DropdownMenuItem>
 
               <DropdownMenuItem className="cursor-pointer">
-                <User className="mr-2 h-4 w-4" />
-                <span>Profile</span>
+                <Link
+                  href={`/profile/${user._id}`}
+                  className="cursor-pointer w-full flex items-center"
+                >
+                  <User className="mr-2 h-4 w-4" />
+                  <span>Profile</span>
+                </Link>
               </DropdownMenuItem>
               <DropdownMenuItem className="cursor-pointer">
-                <Settings className="mr-2 h-4 w-4" />
-                <span>Settings</span>
+                <Link
+                  href="/profile/settings"
+                  className="cursor-pointer w-full flex items-center"
+                >
+                  <Settings className="mr-2 h-4 w-4" />
+                  <span>Settings</span>
+                </Link>
               </DropdownMenuItem>
 
               <DropdownMenuSeparator />

@@ -9,22 +9,13 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
-const NotiLogin = ({ ...modalState }) => {
+const NotiLogin = ({ modalState }: { modalState: any }) => {
   return (
     <Dialog {...modalState}>
-      {/* Nút kích hoạt Dialog */}
-      <DialogTrigger asChild>
-        <Button variant="outline" className="gap-2">
-          <Lock className="h-4 w-4" />
-          Login to Access
-        </Button>
-      </DialogTrigger>
-
       {/* Nội dung Dialog */}
       <DialogContent className="sm:max-w-md">
         <DialogHeader className="flex flex-col items-center gap-2">

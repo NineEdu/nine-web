@@ -1,8 +1,12 @@
+import OverviewPage from "@/pages/Admin/Overview";
 import AdminLayout from "@/shared/layouts/AdminLayout/page";
-import React from "react";
 
 const page = () => {
-  return <AdminLayout>page</AdminLayout>;
+  return (
+    <AdminLayout>
+      <OverviewPage />
+    </AdminLayout>
+  );
 };
 
 export default page;

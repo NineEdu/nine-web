@@ -1,9 +1,7 @@
-import CourseForm from "@/pages/Admin/Courses/Create";
-import CreateCoursePage from "@/pages/Admin/Courses/CreateCoursePage";
-import React from "react";
+import CourseForm from "@/pages/Courses/Create";
 
 const page = () => {
-  return <CreateCoursePage />;
+  return <CourseForm />;
 };
 
 export default page;

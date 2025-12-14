@@ -65,6 +65,20 @@ const courseApis = {
   deleteCourse: ({ courseId }) => {
     return DELETE(`/courses/${courseId}`);
   },
+
+  getManageCourses: ({ keyword, isPublished, page, limit }) => {
+    const params = new URLSearchParams();
+    if (keyword) params.append("keyword", keyword);
+    if (isPublished !== undefined) params.append("isPublished", isPublished);
+    if (page) params.append("page", page);
+    if (limit) params.append("limit", limit);
+
+    return GET(`/courses/manage?${params.toString()}`);
+  },
+
+  getCourseStats: () => {
+    return GET(`/courses/stats`);
+  },
 };
 
 export default courseApis;

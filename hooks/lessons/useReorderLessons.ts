@@ -4,14 +4,12 @@ import { notifyError, notifySuccess } from "@/components/Notify";
 import lessonApis from "@/shared/apis/lessonApis";
 import { useMutation } from "@tanstack/react-query";
 
-// Định nghĩa kiểu dữ liệu đầu vào cho việc sắp xếp
 type ReorderPayload = {
   courseId: string;
   lessonsList: { _id: string; order: number }[];
 };
 
 const mutationFn = async (data: ReorderPayload) => {
-  // Gọi API reOrderLesson đã định nghĩa trong lessonApis
   return await lessonApis.reOrderLesson(data);
 };
 
