@@ -101,14 +101,14 @@ export function MultiSelectV2<T extends FieldValues>({
                     role="combobox"
                     aria-expanded={open}
                     disabled={disabled}
-                    className="w-full justify-between h-auto min-h-10"
+                    className="w-full justify-between h-auto min-h-10 border-slate-50 rounded-[10px]"
                   >
                     <div className="flex flex-wrap gap-1">
                       {selectedLabels.length > 0 ? (
                         selectedLabels.map((option) => (
                           <Badge
                             key={option.value}
-                            variant="secondary"
+                            variant="default"
                             className="mr-1"
                           >
                             {option.label}
